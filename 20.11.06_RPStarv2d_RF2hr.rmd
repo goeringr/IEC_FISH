@@ -1,0 +1,105 @@
+---
+title: "20.11.06starv2d_RF2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+## Fully differentiated (7d)
+### Starved 2 days refed 2 hours
+
+```{r,  read in spots_diffT2}
+
+tidy_spot_files <- function(args){ 
+  spottext <- read_lines(args[1])
+  
+  coords <- data.frame("start" = which(grepl(pattern = "SPOTS_START", spottext))+2, 
+                       "end" = which(grepl(pattern = "SPOTS_END", spottext))-1,
+                       "cell" = c(1:length(which(grepl(pattern = "SPOTS_START", spottext))+2)))
+  
+  x <- c(1:nrow(coords))
+  cell_spot_list <- lapply(x, function(x){tidy_cell_spots(spottext, coords$start[x], coords$end[x], coords$cell[x])})
+  
+  cell_spots <- do.call(rbind, cell_spot_list) %>% mutate(gene = args[3], day = args[2], image = args[4]) %>% select(gene, day, image, cell, everything())
+
+}
+
+
+tidy_cell_spots <- function(spottext, start, end, cell) {
+  spottext[start:end] %>% 
+    as_tibble() %>% 
+    separate(value, into = c("Pos_Y", "Pos_X", "Pos_Z", "AMP", "BGD", "RES", "SigmaX", "SigmaY", "SigmaZ", "Cent_Y", "Cent_X", "Cent_Z", "MuY", "MuX", "MuZ", "ITERY_det", "Y_det", "X_det", "Z_det", "Y_min", "Y_max", "X_min", "X_max", "Z_min", "Z_max", "INT_raw", "INT_filt", "SC_det", "SC_det_norm", "TH_det", "TH_fit", "IN_nuc"), sep = "\t") %>% 
+    mutate(cell = cell)
+}
+
+S2_2RF <- list(c("20.11.06_RPStarv2d_RF2hr/Results/7d_RPL7mut_01_#2_STACK__outline_spots_201108.txt" ,"2S_2RF", "RPL7mut", "01"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_RPL7mut_02_#2_STACK__outline_spots_201108.txt", "2S_2RF", "RPL7mut", "02"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_RPS28_01_#2_STACK__outline_spots_201108.txt", "2S_2RF", "RPS28", "01"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_RPS28_02_#2_STACK__outline_spots_201108.txt", "2S_2RF", "RPS28", "02"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_RPS28mut_01_#2_STACK__outline_spots_201108.txt", "2S_2RF", "RPS28mut", "01"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_RPS28mut_02_#2_STACK__outline_spots_201108.txt", "2S_2RF", "RPS28mut", "02"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_FF_01_#2_STACK__outline_spots_201108.txt", "2S_2RF", "FF", "01"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_FF_02_#2_STACK__outline_spots_201108.txt", "2S_2RF", "FF", "02"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_FF_03_#2_STACK__outline_spots_201108.txt", "2S_2RF", "FF", "03"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_FF_04_#2_STACK__outline_spots_201108.txt", "2S_2RF", "FF", "04"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_LOX_01_#2_STACK__outline_spots_201108.txt", "2S_2RF", "Lox", "01"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_LOX_02_#2_STACK__outline_spots_201108.txt", "2S_2RF", "Lox", "02"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_LOX_03_#2_STACK__outline_spots_201108.txt", "2S_2RF", "Lox", "03"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_RPL7_01_#2_STACK__outline_spots_201108.txt", "2S_2RF", "RPL7", "01"),
+               c("20.11.06_RPStarv2d_RF2hr/Results/7d_RPL7_02_#2_STACK__outline_spots_201108.txt", "2S_2RF", "RPL7", "02"))
+
+x <- c(1:length(S2_2RF))
+cell_file_list_S2_2RF <- lapply(x, function(x){tidy_spot_files(unlist(S2_2RF[x]))})
+spots_S2_2RF <- do.call(rbind, cell_file_list_S2_2RF) 
+
+```
+
+```{r, thresholdmyself_diffT2}
+
+spots_S2_2RF %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot()
+
+
+spots_S2_2RF %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, AMP, INT_raw, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+spots_S2_2RF %>% select(gene,INT_raw) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(1500,3000) + geom_hline(yintercept = 2450)
+
+spots_S2_2RF %>% select(gene,BGD) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(750,1800) + geom_hline(yintercept = 1325) 
+
+
+#really limits spots.
+spots_S2_2RF_filt <- spots_S2_2RF %>% filter(as.numeric(INT_raw) > 2700, as.numeric(INT_raw) > 4000, TH_fit == 1, as.numeric(Pos_Z) > 3000, as.numeric(Pos_Z) < 19000)
+
+```
+
+```{r, spot_analysis_diffT2}
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "Lox"), c("FF", "RPS28"), c("FF", "RPL7mut"), c("FF", "RPS28mut"), c("RPL7", "RPL7mut"), c("RPS28", "RPS28mut"))
+
+spots_S2_2RF_filt %>% group_by(gene, image, cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = gene, y = num_spots, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text(y.pos = -1) 
+
+spots_S2_2RF_filt %>% ggplot(aes(x = gene, y = -(as.numeric(Pos_Z)), fill = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x ="", y = "Raw FISH-quant -Pos_Z")
+
+##### 0 -> 13000 nm ~ 13 microns?? uhhh...
+
+comparisons <- list(c("FF", "RPL7"),  c("FF", "RPS28"), c("FF", "RPL7mut"), c("FF", "RPS28mut"), c("RPL7", "RPL7mut"), c("RPS28", "RPS28mut"))
+
+spots_S2_2RF_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 16000)/1000) %>% filter(gene == "FF") %>% summarize(median(Position_In_Z))
+
+spots_S2_2RF_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 16000)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = gene, y = Position_In_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + scale_fill_manual(values = c("#808080", "#e8c040", "#e8c040", "#b82080","#b82080")) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = 5.95, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + geom_hline(yintercept = 13)  
+
+
+#spots_S2_2RF_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 16000)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = Position_In_Z, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + scale_fill_manual(values = c("#808080", "#e8c040")) + labs(x = "Position in Z (um)") 
+
+
+spots_S2_2RF_filt %>% group_by(gene, image, cell) %>% summarise(mean_Z = mean(-(as.numeric(Pos_Z))+16000, na.rm = TRUE), med_Z = median(-(as.numeric(Pos_Z))+16000, na.rm = TRUE)) %>% ggplot(aes(x = gene, y = med_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Median Position in Z per cell") + EnvStats::stat_n_text(y.pos = -10)
+
+spots_S2_2RF_filt %>% filter(gene != "Lox") %>% ggplot(aes(-(as.numeric(Pos_Z))+16000, col = gene)) + stat_ecdf(size = 1.5) + theme_cowplot() + xlim(3000, 10000) + labs(x = "Position in Z", y = "Proportion of spots")
+
+
+```

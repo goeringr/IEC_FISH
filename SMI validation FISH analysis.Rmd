@@ -1,0 +1,357 @@
+---
+title: "validation SMI fish"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(cowplot)
+library(ggpubr)
+library(ggridges)
+```
+
+## 7 Day differentiated C2bbe1 cells
+
+```{r,  read in spots}
+
+tidy_spot_files <- function(args){ 
+  spottext <- read_lines(args[1])
+  
+  coords <- data.frame("start" = which(grepl(pattern = "SPOTS_START", spottext))+2, 
+                       "end" = which(grepl(pattern = "SPOTS_END", spottext))-1,
+                       "cell" = c(1:length(which(grepl(pattern = "SPOTS_START", spottext))+2)))
+  
+  x <- c(1:nrow(coords))
+  cell_spot_list <- lapply(x, function(x){tidy_cell_spots(spottext, coords$start[x], coords$end[x], coords$cell[x])})
+  
+  cell_spots <- do.call(rbind, cell_spot_list) %>% mutate(gene = args[3], day = args[2], image = args[4]) %>% select(gene, day, image, cell, everything())
+
+}
+
+
+tidy_cell_spots <- function(spottext, start, end, cell) {
+  spottext[start:end] %>% 
+    as_tibble() %>% 
+    separate(value, into = c("Pos_Y", "Pos_X", "Pos_Z", "AMP", "BGD", "RES", "SigmaX", "SigmaY", "SigmaZ", "Cent_Y", "Cent_X", "Cent_Z", "MuY", "MuX", "MuZ", "ITERY_det", "Y_det", "X_det", "Z_det", "Y_min", "Y_max", "X_min", "X_max", "Z_min", "Z_max", "INT_raw", "INT_filt", "SC_det", "SC_det_norm", "TH_det", "TH_fit", "IN_nuc"), sep = "\t") %>% 
+    mutate(cell = cell)
+}
+
+#spot_files_7d <- list(c("7d SMI validation/Results/7d_LOX_old_Col12a1_01_#2_STACK__outline_spots_201001.txt", "7", "Col12a1", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_Col12a1_02_#2_STACK__outline_spots_201001.txt", "7", "Col12a1", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_Col12a1_03_#2_STACK__outline_spots_201001.txt", "7", "Col12a1", "03"),
+#              c("7d SMI validation/Results/7d_LOX_old_FF_01_#2_STACK__outline_spots_201001.txt", "7", "Lox", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_FF_02_#2_STACK__outline_spots_201001.txt", "7", "Lox", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_FF_03_#2_STACK__outline_spots_201001.txt", "7", "Lox", "03"),
+#              c("7d SMI validation/Results/7d_LOX_old_Osbpl3_01_#2_STACK__outline_spots_201001.txt", "7", "Osbpl3", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_Osbpl3_02_#2_STACK__outline_spots_201001.txt", "7", "Osbpl3", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_Osbpl3_03_#2_STACK__outline_spots_201001.txt", "7", "Osbpl3", "03"),
+#              c("7d SMI validation/Results/7d_LOX_old_Sdc2_01_#2_STACK__outline_spots_201001.txt", "7", "Sdc2", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_Sdc2_02_#2_STACK__outline_spots_201001.txt", "7", "Sdc2", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_Sdc2_03_#2_STACK__outline_spots_201001.txt", "7", "Sdc2", "03"),
+#              c("7d SMI validation/Results/7d_LOX_old_SerpinF2_01_#2_STACK__outline_spots_201001.txt", "7", "SerpinF2", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_SerpinF2_02_#2_STACK__outline_spots_201001.txt", "7", "SerpinF2", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_SerpinF2_03_#2_STACK__outline_spots_201001.txt", "7", "SerpinF2", "03"),
+#              c("7d SMI validation/Results/7d_pTL005_old_FF_01_#2_STACK__outline_spots_201001.txt", "7", "FF", "01"),
+#              c("7d SMI validation/Results/7d_pTL005_old_FF_02_#2_STACK__outline_spots_201001.txt", "7", "FF", "02"),
+#              c("7d SMI validation/Results/7d_pTL005_old_FF_03_#2_STACK__outline_spots_201001.txt", "7", "FF", "03"))
+
+#spot_files_7d <- list(c("7d SMI validation/Results/7d_LOX_old_Col12a1_01_#2_STACK__outline_spots_201104.txt", "7", "Col12a1", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_Col12a1_02_#2_STACK__outline_spots_201104.txt", "2", "Col12a1", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_Col12a1_03_#2_STACK__outline_spots_201104.txt", "2", "Col12a1", "03"),
+#              c("7d SMI validation/Results/7d_LOX_old_FF_01_#2_STACK__outline_spots_201104.txt", "2", "Lox", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_FF_02_#2_STACK__outline_spots_201104.txt", "2", "Lox", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_FF_03_#2_STACK__outline_spots_201104.txt", "2", "Lox", "03"),
+#              c("7d SMI validation/Results/7d_LOX_old_Osbpl3_01_#2_STACK__outline_spots_201104.txt", "2", "Osbpl3", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_Osbpl3_02_#2_STACK__outline_spots_201104.txt", "2", "Osbpl3", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_Osbpl3_03_#2_STACK__outline_spots_201104.txt", "2", "Osbpl3", "03"),
+#              c("7d SMI validation/Results/7d_LOX_old_Sdc2_01_#2_STACK__outline_spots_201104.txt", "2", "Sdc2", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_Sdc2_02_#2_STACK__outline_spots_201104.txt", "2", "Sdc2", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_Sdc2_03_#2_STACK__outline_spots_201104.txt", "2", "Sdc2", "03"),
+#              c("7d SMI validation/Results/7d_LOX_old_SerpinF2_01_#2_STACK__outline_spots_201104.txt", "2", "SerpinF2", "01"),
+#              c("7d SMI validation/Results/7d_LOX_old_SerpinF2_02_#2_STACK__outline_spots_201104.txt", "2", "SerpinF2", "02"),
+#              c("7d SMI validation/Results/7d_LOX_old_SerpinF2_03_#2_STACK__outline_spots_201104.txt", "2", "SerpinF2", "03"),
+#              c("7d SMI validation/Results/7d_pTL005_old_FF_01_#2_STACK__outline_spots_201104.txt", "2", "FF", "01"),
+#              c("7d SMI validation/Results/7d_pTL005_old_FF_02_#2_STACK__outline_spots_201104.txt", "2", "FF", "02"),
+#              c("7d SMI validation/Results/7d_pTL005_old_FF_03_#2_STACK__outline_spots_201104.txt", "2", "FF", "03"))
+
+
+spot_files_7d <- list(c("20.11.14_7d_SMI/Results/7d_smi_Col12a1_01_#2_STACK__outline_spots_201114.txt", "2", "Col12a1", "01"),
+              c("20.11.14_7d_SMI/Results/7d_smi_Col12a1_02_#2_STACK__outline_spots_201114.txt", "2", "Col12a1", "02"),
+              c("20.11.14_7d_SMI/Results/7d_smi_Lox_01_#2_STACK__outline_spots_201114.txt", "2", "Lox", "01"),
+              c("20.11.14_7d_SMI/Results/7d_smi_Lox_02_#2_STACK__outline_spots_201114.txt", "2", "Lox", "02"),
+              c("20.11.14_7d_SMI/Results/7d_smi_Osbpl3_01_#2_STACK__outline_spots_201114.txt", "2", "Osbpl3", "01"),
+              c("20.11.14_7d_SMI/Results/7d_smi_Osbpl3_02_#2_STACK__outline_spots_201114.txt", "2", "Osbpl3", "02"),
+              c("20.11.14_7d_SMI/Results/7d_smi_Sdc2_01_#2_STACK__outline_spots_201114.txt", "2", "Sdc2", "01"),
+              c("20.11.14_7d_SMI/Results/7d_smi_Sdc2_02_#2_STACK__outline_spots_201114.txt", "2", "Sdc2", "02"),
+              c("20.11.14_7d_SMI/Results/7d_smi_SerpinF2_01_#2_STACK__outline_spots_201114.txt", "2", "SerpinF2", "01"),
+              c("20.11.14_7d_SMI/Results/7d_smi_SerpinF2_02_#2_STACK__outline_spots_201114.txt", "2", "SerpinF2", "02"),
+              c("20.11.14_7d_SMI/Results/7d_smi_FF_01_#2_STACK__outline_spots_201114.txt", "2", "FF", "01"),
+              c("20.11.14_7d_SMI/Results/7d_smi_FF_02_#2_STACK__outline_spots_201114.txt", "2", "FF", "02"))
+
+x <- c(1:length(spot_files_7d))
+cell_file_list_7d <- lapply(x, function(x){tidy_spot_files(unlist(spot_files_7d[x]))})
+spots_7d <- do.call(rbind, cell_file_list_7d) 
+
+```
+
+```{r, thresholdmyself}
+
+##group all samples with spots (pos) versus Lox negative (neg) control. what spots are real?
+#these parameters are all similar except Pos_Z, don't want to filter that.
+spots_7d %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot()
+
+#these parameters provide large differences...
+spots_7d %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, AMP, INT_raw, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot() + ylim(0,6000)
+
+##a closer look with each condition.
+spots_7d %>% select(gene,INT_raw) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(200,2000) + geom_hline(yintercept = 3500)
+
+spots_7d %>% select(gene,BGD) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(250,4000) + geom_hline(yintercept = 2000) + geom_hline(yintercept = 1000)
+
+#really limits spots.
+spots_7d_filt <- spots_7d %>% filter(TH_fit ==1 , as.numeric(INT_raw) > 1750)
+```
+
+```{r, spot_analysis}
+
+comparisons <- list(c("FF", "Col12a1"), c("FF", "Sdc2"), c("FF", "SerpinF2"), c("FF", "Lox"), c("FF", "Osbpl3"))
+
+spots_7d_filt %>% group_by(gene, image, cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = gene, y = num_spots, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Number of spots per cell")
+
+spots_7d_filt %>% ggplot(aes(x = gene, y = -(as.numeric(Pos_Z)), fill = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x ="", y = "Raw FISH-quant -Pos_Z")
+
+##### 0 -> 13000 nm ~ 13 microns?? uhhh...
+
+spots_7d_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 15000)/1000) %>% filter(gene == "FF") %>% summarize(median(Position_In_Z)) 
+
+spots_7d_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 15000)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = gene, y = Position_In_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = list(c("FF", "Col12a1"), c("FF", "Osbpl3"), c("FF", "Sdc2"), c("FF", "SerpinF2")), method = "wilcox.test") + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = 4.58, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + scale_x_discrete(limits = c("FF", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2"))
+
+spots_7d_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 15000)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = gene, y = Position_In_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = list(c("FF", "Col12a1"), c("FF", "Osbpl3"), c("FF", "Sdc2"), c("FF", "SerpinF2")), method = "wilcox.test") + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = 4.58, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + scale_x_discrete(limits = c("FF", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2"))
+
+spots_7d_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 12000)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = Position_In_Z, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "Position in Z (um)") 
+
+
+
+ggdraw() + draw_plot(spots_7d_filt %>% 
+    mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 12000)/1000) %>% filter(gene != "Lox") %>%
+    ggplot(aes(x = Position_In_Z, y = gene, fill = stat(x))) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+    scale_fill_viridis_c(name = "Position in Z", option = "C") +
+    labs(title = "SMI in 7d diff C2bbe1", y = "") +
+    theme_cowplot() +
+    guides(fill = FALSE), 0, 0, 0.75, 1) + 
+    draw_plot(spots_7d_filt %>% 
+                mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 12000)/1000) %>% filter(gene != "Lox") %>% 
+                na.omit() %>%  
+                unique() %>% 
+                ggplot(aes(y = gene)) +
+                geom_bar() + 
+                theme_cowplot() +
+                scale_y_discrete(labels = c("","","","", "")) +
+                labs(x = "", y = "") +
+                theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1)),  0.7, 0, 0.2, 0.84)
+
+
+#####
+
+spots_7d_filt %>% group_by(gene, image, cell) %>% summarise(mean_Z = mean(-(as.numeric(Pos_Z))+14000, na.rm = TRUE), med_Z = median(-(as.numeric(Pos_Z))+14000, na.rm = TRUE)) %>% ggplot(aes(x = gene, y = med_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Median Position in Z per cell")
+
+spots_7d_filt %>% filter(gene != "Lox") %>% ggplot(aes(-(as.numeric(Pos_Z))+14000, col = gene)) + stat_ecdf(size = 1.5) + theme_cowplot() + xlim(3000, 10000) + labs(x = "Position in Z", y = "Proportion of spots")
+
+
+```
+
+```{r, spots with quartiles, echo = FALSE}
+#iPos <- spots %>% group_by(gene,day,image) %>% summarize(imax_Z = max(Pos_Z), imin_Z = min(Pos_Z))
+#cPos <- spots %>% group_by(gene, day, image, cell) %>% summarize(cmax_Z = max(Pos_Z), cmin_Z = min(Pos_Z))
+#Pos <- left_join(cPos, iPos)
+
+#Pos_spots <- left_join(spots, Pos) %>% mutate(i2 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.5 + imin_Z), "B2", "A2"), 
+#                                              c2 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.5 + cmin_Z), "B2", "A2"),
+#                                              i3 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.66 + imin_Z), "B3", ifelse(Pos_Z < ((imax_Z - imin_Z)* 0.33 + imin_Z), "A3", "M")),
+#                                              c3 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.66 + cmin_Z), "B3", ifelse(Pos_Z < ((cmax_Z - cmin_Z)* 0.33 + cmin_Z), "A3", "M")),
+#                                              i4 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.75 + imin_Z), "B4", ifelse(Pos_Z < ((imax_Z - imin_Z)* 0.25 + imin_Z), "A4", "M")),
+#                                              c4 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.75 + cmin_Z), "B4", ifelse(Pos_Z < ((cmax_Z - cmin_Z)* 0.25 + cmin_Z), "A4", "M")))
+
+
+#Pos_spots %>% filter(day == 7) %>% ggplot(aes(x = gene, fill = i2)) + geom_bar(position = "fill") + theme_cowplot()
+
+
+```
+
+## 21 Day differentiated C2bbe1 cells
+
+```{r, }
+spot_files_21d <- list(c("21d SMI validation/Results/21d_LOX_Col12a1_01_#2_STACK__outline_spots_201002.txt", "21", "Col12a1", "01"),
+              c("21d SMI validation/Results/21d_LOX_Col12a1_02_#2_STACK__outline_spots_201002.txt", "21", "Col12a1", "02"),
+              c("21d SMI validation/Results/21d_LOX_Col12a1_03_#2_STACK__outline_spots_201002.txt", "21", "Col12a1", "03"),
+              c("21d SMI validation/Results/21d_LOX_FF_01_#2_STACK__outline_spots_201002.txt", "21", "Lox", "01"),
+              c("21d SMI validation/Results/21d_LOX_FF_02_#2_STACK__outline_spots_201002.txt", "21", "Lox", "02"),
+              c("21d SMI validation/Results/21d_LOX_FF_03_#2_STACK__outline_spots_201002.txt", "21", "Lox", "03"),
+              c("21d SMI validation/Results/21d_LOX_Osbpl3_01_#2_STACK__outline_spots_201002.txt", "21", "Osbpl3", "01"),
+              c("21d SMI validation/Results/21d_LOX_Osbpl3_02_#2_STACK__outline_spots_201002.txt", "21", "Osbpl3", "02"),
+              c("21d SMI validation/Results/21d_LOX_Osbpl3_03_#2_STACK__outline_spots_201002.txt", "21", "Osbpl3", "03"),
+              c("21d SMI validation/Results/21d_LOX_Sdc2_02_#2_STACK__outline_spots_201002.txt", "21", "Sdc2", "02"),
+              c("21d SMI validation/Results/21d_LOX_Sdc2_03_#2_STACK__outline_spots_201002.txt", "21", "Sdc2", "03"),
+              c("21d SMI validation/Results/21d_LOX_SerpinF2_01_#2_STACK__outline_spots_201002.txt", "21", "SerpinF2", "01"),
+              c("21d SMI validation/Results/21d_LOX_SerpinF2_02_#2_STACK__outline_spots_201002.txt", "21", "SerpinF2", "02"),
+              c("21d SMI validation/Results/21d_LOX_SerpinF2_03_#2_STACK__outline_spots_201002.txt", "21", "SerpinF2", "03"),
+              c("21d SMI validation/Results/21d_pTL005_FF_01_#2_STACK__outline_spots_201002.txt", "21", "FF", "01"),
+              c("21d SMI validation/Results/21d_pTL005_FF_02_#2_STACK__outline_spots_201002.txt", "21", "FF", "02"),
+              c("21d SMI validation/Results/21d_pTL005_FF_03_#2_STACK__outline_spots_201002.txt", "21", "FF", "03"))
+
+x <- c(1:length(spot_files_21d))
+cell_file_list_21d <- lapply(x, function(x){tidy_spot_files(unlist(spot_files_21d[x]))})
+spots_21d <- do.call(rbind, cell_file_list_21d) 
+
+```
+
+```{r, }
+##group all samples with spots (pos) versus Lox negative (neg) control. what spots are real?
+#BGD could be filtered on, seems different. not Pos_Z, don't want to filter that.
+spots_21d %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot()
+
+#only Int_raw is different
+spots_21d %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, AMP, INT_raw, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+spots_21d %>% select(gene,INT_raw) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(1000,3000) + geom_hline(yintercept = 1500)
+
+spots_21d %>% select(gene,BGD) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(500,2000) + geom_hline(yintercept = 850)
+
+##Pos_Z is kinda weird
+spots_21d %>% select(gene,Pos_Z) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() 
+
+
+#really limits spots.
+spots_21d_filt <- spots_21d %>% filter(as.numeric(INT_raw) > 1500 & as.numeric(BGD) > 850)
+
+```
+
+```{r, }
+
+comparisons <- list(c("FF", "Col12a1"), c("FF", "Sdc2"), c("FF", "SerpinF2"), c("FF", "Lox"), c("FF", "Osbpl3"))
+
+spots_21d_filt %>% group_by(gene, image, cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = gene, y = num_spots, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Number of spots per cell")
+
+spots_21d_filt %>% ggplot(aes(x = gene, y = -(as.numeric(Pos_Z)), fill = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x ="", y = "Raw FISH-quant -Pos_Z")
+
+##### 0 -> 13000 nm ~ 13 microns?? uhhh...
+spots_21d_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 10000)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = gene, y = Position_In_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = list(c("FF", "Col12a1"), c("FF", "Osbpl3"), c("FF", "Sdc2"), c("FF", "SerpinF2")), method = "wilcox.test", label.y = c(9,10,11,12)) + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = 3.41, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + geom_hline(yintercept = 8.25) + scale_x_discrete(limits = c("FF", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2"), labels = c("Firefly", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2")) + coord_cartesian(ylim = c(-1,12.5))
+
+spots_21d_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 10000)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = Position_In_Z, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "Position in Z (um)") + xlim(-0.5, 10)
+
+
+
+ggdraw() + draw_plot(spots_21d_filt %>% 
+    mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 10000)/1000) %>% filter(gene != "Lox") %>%
+    ggplot(aes(x = Position_In_Z, y = gene, fill = stat(x))) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+    scale_fill_viridis_c(name = "Position in Z", option = "C") +
+    labs(title = "SMI in 21d diff C2bbe1", y = "") +
+    theme_cowplot() +
+    xlim(-0.5, 10) +
+    guides(fill = FALSE), 0, 0, 0.75, 1) + 
+    draw_plot(spots_21d_filt %>% 
+                mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 10000)/1000) %>% 
+                filter(gene != "Lox") %>% 
+                na.omit() %>%  
+                unique() %>% 
+                ggplot(aes(y = gene)) +
+                geom_bar() + 
+                theme_cowplot() +
+                scale_y_discrete(labels = c("","","","", "")) +
+                labs(x = "", y = "") +
+                theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1)),  0.7, 0, 0.2, 0.84)
+
+
+
+
+#####
+
+spots_21d_filt %>% group_by(gene, image, cell) %>% summarise(mean_Z = mean(-(as.numeric(Pos_Z))+19000, na.rm = TRUE), med_Z = median(-(as.numeric(Pos_Z))+19000, na.rm = TRUE)) %>% ggplot(aes(x = gene, y = med_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Median Position in Z per cell")
+
+spots_21d_filt %>% filter(gene != "Lox") %>% ggplot(aes(-(as.numeric(Pos_Z))+10000, col = gene)) + stat_ecdf(size = 1.5) + theme_cowplot() + xlim(0, 8000) + labs(x = "Position in Z", y = "Proportion of spots")
+
+
+```
+
+```{r, norm Z}
+spotrange <- rbind(spots_7d_filt, spots_21d_filt) %>% group_by(gene,day,image,cell) %>% summarize(maxZ = quantile(as.numeric(Pos_Z), 0.95), minZ = quantile(as.numeric(Pos_Z), 0.05))
+
+spotrange %>% filter(gene != "Lox") %>%  unite(gene,day,sep = "_", col = "sample") %>% gather(-sample,-image,-cell, value = "Zdat", key = "mm") %>% ggplot(aes(x = sample, y = Zdat,col = mm)) + geom_point() + theme_cowplot()
+
+norm_spots <- rbind(spots_7d_filt, spots_21d_filt) %>% left_join(., spotrange) %>% mutate(norm_Z = -(as.numeric(Pos_Z) - minZ)/(maxZ-minZ) + 1) %>% filter(norm_Z > 0, norm_Z < 1)
+
+med_line <- norm_spots %>% filter(gene == "FF", day == "2") %>% summarize(median(norm_Z)) %>% as.numeric()
+
+norm_spots %>% filter(gene != "Lox", day == 2) %>% ggplot(aes(x = gene, y = norm_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = list(c("FF", "Col12a1"), c("FF", "Osbpl3"), c("FF", "Sdc2"), c("FF", "SerpinF2")), method = "wilcox.test") + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "", y = "Normalized Position in Z") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0)  + scale_x_discrete(limits = c("FF", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2"), labels = c("Firefly", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2"))
+
+med_line <- norm_spots %>% filter(gene == "FF", day == "21") %>% summarize(median(norm_Z)) %>% as.numeric()
+
+norm_spots %>% filter(gene != "Lox", day == 21) %>% ggplot(aes(x = gene, y = norm_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = list(c("FF", "Col12a1"), c("FF", "Osbpl3"), c("FF", "Sdc2"), c("FF", "SerpinF2")), method = "wilcox.test") + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "", y = "Normalized Position in Z") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0)  + scale_x_discrete(limits = c("FF", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2"), labels = c("Firefly", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2"))
+
+```
+
+##Smi FISH on 7d DISH differentiated C2bbe1 cells
+
+```{r, }
+spot_files_smiDISH <- list(c("21.01.13_smiDISH/Results/7d_smiDISH_Col12a1_01_#2_STACK__outline_spots_210114.txt", "21", "Col12a1", "01"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Col12a1_02_#2_STACK__outline_spots_210114.txt", "21", "Col12a1", "02"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Col12a1_03_#2_STACK__outline_spots_210114.txt", "21", "Col12a1", "03"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_FF_01_#2_STACK__outline_spots_210114.txt", "21", "FF", "01"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_FF_02_#2_STACK__outline_spots_210114.txt", "21", "FF", "02"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_FF_03_#2_STACK__outline_spots_210114.txt", "21", "FF", "03"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Lox_01_#2_STACK__outline_spots_210114.txt", "21", "Lox", "01"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Lox_02_#2_STACK__outline_spots_210114.txt", "21", "Lox", "02"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Lox_03_#2_STACK__outline_spots_210114.txt", "21", "Lox", "03"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Osbpl3_01_#2_STACK__outline_spots_210114.txt", "21", "Osbpl3", "01"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Osbpl3_02_#2_STACK__outline_spots_210114.txt", "21", "Osbpl3", "02"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Osbpl3_03_#2_STACK__outline_spots_210114.txt", "21", "Osbpl3", "03"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Sdc2_01_#2_STACK__outline_spots_210114.txt", "21", "Sdc2", "01"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Sdc2_02_#2_STACK__outline_spots_210114.txt", "21", "Sdc2", "02"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_Sdc2_03_#2_STACK__outline_spots_210114.txt", "21", "Sdc2", "03"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_SerpinF2_01_#2_STACK__outline_spots_210114.txt", "21", "SerpinF2", "01"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_SerpinF2_02_#2_STACK__outline_spots_210114.txt", "21", "SerpinF2", "02"),
+                           c("21.01.13_smiDISH/Results/7d_smiDISH_SerpinF2_03_#2_STACK__outline_spots_210114.txt", "21", "SerpinF2", "03"))
+
+x <- c(1:length(spot_files_smiDISH))
+cell_file_list_smiDISH <- lapply(x, function(x){tidy_spot_files(unlist(spot_files_smiDISH[x]))})
+spots_smiDISH <- do.call(rbind, cell_file_list_smiDISH) 
+
+```
+
+```{r, }
+
+spots_smiDISH %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot()
+
+#only Int_raw is different
+spots_smiDISH %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, AMP, INT_raw, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+spots_smiDISH %>% filter(TH_fit == 1) %>% select(gene,INT_raw) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(1000,3000) + geom_hline(yintercept = 1800)
+
+spots_smiDISH %>% filter(TH_fit == 1) %>% select(gene,BGD) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(500,2000) + geom_hline(yintercept = 800)
+
+
+#really limits spots.
+spots_smiDISH_filt <- spots_smiDISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1800, as.numeric(INT_raw) < 4000, as.numeric(SigmaZ) < 450, as.numeric(BGD) > 850)
+
+```
+
+```{r, }
+comparisons <- list(c("FF", "Col12a1"), c("FF", "Sdc2"), c("FF", "SerpinF2"), c("FF", "Lox"), c("FF", "Osbpl3"))
+
+spots_smiDISH_filt %>% group_by(gene, image, cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = gene, y = num_spots, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Number of spots per cell")
+
+spots_smiDISH_filt %>% ggplot(aes(x = gene, y = as.numeric(Pos_Z), fill = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x ="", y = "Raw FISH-quant Pos_Z")
+
+##### 0 -> 13000 nm ~ 13 microns?? uhhh...
+
+med_line <- spots_smiDISH_filt %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% filter(gene =="FF") %>% summarize(median(Position_In_Z, na.rm = TRUE)) %>% pull() %>% as.numeric()
+
+spots_smiDISH_filt %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = gene, y = Position_In_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = list(c("FF", "Col12a1"), c("FF", "Osbpl3"), c("FF", "Sdc2"), c("FF", "SerpinF2")), method = "wilcox.test", label.y = c(9,10,11,12)) + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0)  + scale_x_discrete(limits = c("FF", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2"), labels = c("Firefly", "Col12a1", "Osbpl3", "Sdc2", "SerpinF2")) + coord_cartesian(ylim = c(-1,12.5))
+
+spots_smiDISH_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 10000)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = Position_In_Z, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + scale_fill_manual(values = c("#c551ee", "#808080", "#9840e3", "#48c8db", "#66f2e0")) + labs(x = "Position in Z (um)") + xlim(-0.5, 10)
+```

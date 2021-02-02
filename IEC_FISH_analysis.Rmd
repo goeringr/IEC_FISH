@@ -1,0 +1,268 @@
+---
+title: "AB FISH Validation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(cowplot)
+library(ggpubr)
+
+```
+
+```{r, read in summaries}
+
+tidy_FISHquant_summary <- function(args) {
+  read.csv(args[1], skip = 4, sep = "\t", header = TRUE) %>% 
+    as_tibble() %>% 
+    mutate(day = args[2], 
+           gene = ifelse(grepl("FF", FILE), paste("FF", args[3], sep = "_"), args[3]), 
+           image = ifelse(grepl("01", FILE), "01", 
+                          ifelse(grepl("02", FILE), "02", "03"))) %>% 
+    select(gene, day, image, CELL, everything(), -FILE)
+}
+
+
+files <- list(c("Results/__FQ_batch_summary_MATURE_60x_7d_col12a1_200228.txt", 7, "col12a1"),
+             c("Results/__FQ_batch_summary_MATURE_60x_7d_osbpl3_200228.txt", 7, "Osbpl3"),
+             c("Results/__FQ_batch_summary_MATURE_60x_7d_sdc2_200229.txt", 7, "Sdc2"),
+             c("Results/__FQ_batch_summary_MATURE_60x_7d_serpinf2_200229.txt", 7, "Serpinf2"),
+             c("Results/__FQ_batch_summary_MATURE_60x_21d_col12a1_200301.txt", 21, "Col12a1"),
+             c("Results/__FQ_batch_summary_MATURE_60x_21d_osbpl3_200301.txt", 21, "Osbpl3"),
+             c("Results/__FQ_batch_summary_MATURE_60x_21d_sdc2_200301.txt", 21, "Sdc2"),
+             c("Results/__FQ_batch_summary_MATURE_60x_21d_serpinf2_200301.txt", 21, "Serpinf2"))
+
+same_7d_fish <- list(c("Results/__FQ_batch_summary_MATURE_60x_7d_col12a1_200228.txt", 7, "col12a1"),
+             c("Results/__FQ_batch_summary_MATURE_60x_7d_osbpl3_200228.txt", 7, "Osbpl3"),
+             c("Results/__FQ_batch_summary_MATURE_60x_7d_sdc2_200229.txt", 7, "Sdc2"),
+             c("Results/__FQ_batch_summary_MATURE_60x_7d_serpinf2_200229.txt", 7, "Serpinf2"))
+
+x = c(1:8)
+FISH_list <- lapply(x, function(x){tidy_FISHquant_summary(unlist(files[x]))})
+
+FISH <- do.call(rbind, FISH_list)
+
+```
+
+```{r,  read in spots}
+
+tidy_cell_spots <- function(spottext, start, end, cell) {
+  spottext[start:end] %>% 
+    as_tibble() %>% 
+    separate(value, into = c("Pos_Y", "Pos_X", "Pos_Z", "AMP", "BGD", "RES", "SigmaX", "SigmaY", "SigmaZ", "Cent_Y", "Cent_X", "Cent_Z", "MuY", "MuX", "MuZ", "ITERY_det", "Y_det", "X_det", "Z_det", "Y_min", "Y_max", "X_min", "X_max", "Z_min", "Z_max", "INT_raw", "INT_filt", "SC_det", "SC_det_norm", "TH_det", "TH_fit", "IN_nuc"), sep = "\t") %>% 
+    mutate(cell = cell) %>% 
+    select(cell, Pos_X, Pos_Y, Pos_Z)
+}
+
+spot_files <- list(c("Results/C2bbe1_7d_Col12a1_smiFISH_01_#2_STACK__outline60x_7d_col12a1_spots_200228.txt", "Col12a1", 7, 01),            
+                   c("Results/C2bbe1_7d_Col12a1_smiFISH_02_#2_STACK__outline60x_7d_col12a1_spots_200228.txt", "Col12a1", 7, 02),
+                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_01_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 01),
+                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_02_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 02),
+                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_03_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 03),
+                   c("Results/C2bbe1_7d_Sdc2_smiFISH_01_#2_STACK__outline60x_7d_sdc2_spots_200229.txt", "Sdc2", 7, 01),
+                   c("Results/C2bbe1_7d_Sdc2_smiFISH_02_#2_STACK__outline60x_7d_sdc2_spots_200229.txt", "Sdc2", 7, 02),
+                   c("Results/C2bbe1_7d_SerpinF2_smiFISH_01_#2_STACK__outline60x_7d_serpinf2_spots_200229.txt", "Serpinf2", 7, 01),
+                   c("Results/C2bbe1_7d_SerpinF2_smiFISH_02_#2_STACK__outline60x_7d_serpinf2_spots_200229.txt", "Serpinf2", 7, 02),
+                   c("Results/C2bbe1_21d_Col121a_60X_01_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "Col12a1", 21, 01),
+                   c("Results/C2bbe1_21d_Col121a_60X_02_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "Col12a1", 21, 02),
+                   c("Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "FF_Col12a1", 21, 01),
+                   c("Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "FF_Col12a1", 21, 02),
+                   c("Results/C2bbe1_21d_Osbpl3_flipped_60X_01_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "Osbpl3", 21, 01),
+                   c("Results/C2bbe1_21d_Osbpl3_flipped_60X_02_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "Osbpl3", 21, 02),
+                   c("Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "FF_Osbpl3", 21, 01),
+                   c("Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "FF_Osbpl3", 21, 02),
+                   c("Results/C2bbe1_21d_Sdc2_60X_01_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "Sdc2", 21, 01),
+                   c("Results/C2bbe1_21d_Sdc2_60X_02_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "Sdc2", 21, 02),
+                   c("Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "FF_Sdc2", 21, 01),
+                   c("Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "FF_Sdc2", 21, 02),
+                   c("Results/C2bbe1_21d_SerpinF2_60X_01_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "Serpinf2", 21, 01),
+                   c("Results/C2bbe1_21d_SerpinF2_60X_02_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "Serpinf2", 21, 02),
+                   c("Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "FF_Serpinf2", 21, 01),
+                   c("Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "FF_Serpinf2", 21, 02))
+  
+
+
+same_7d_files <- list(c("Results/C2bbe1_7d_Col12a1_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Col12a1", 7, 01),
+                   c("Results/C2bbe1_7d_Col12a1_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Col12a1", 7, 02),
+                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 01),
+                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 02),
+                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_03_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 03),
+                   c("Results/C2bbe1_7d_Sdc2_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Sdc2", 7, 01),
+                   c("Results/C2bbe1_7d_Sdc2_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Sdc2", 7, 02),
+                   c("Results/C2bbe1_7d_SerpinF2_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Serpinf2", 7, 01),
+                   c("Results/C2bbe1_7d_SerpinF2_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Serpinf2", 7, 02))
+
+
+tidy_spot_files <- function(args){ 
+  spottext <- read_lines(args[1])
+  
+  coords <- data.frame("start" = which(grepl(pattern = "SPOTS_START", spottext))+2, 
+                       "end" = which(grepl(pattern = "SPOTS_END", spottext))-1,
+                       "cell" = c(1:length(which(grepl(pattern = "SPOTS_START", spottext))+2)))
+  
+  x <- c(1:nrow(coords))
+  cell_spot_list <- lapply(x, function(x){tidy_cell_spots(spottext, coords$start[x], coords$end[x], coords$cell[x])})
+  
+  cell_spots <- do.call(rbind, cell_spot_list) %>% mutate(gene = args[2], day = args[3], image = args[4]) %>% select(gene, day, image, cell, Pos_X, Pos_Y, Pos_Z)
+
+}
+
+x <- c(1:length(spot_files))
+cell_file_list <- lapply(x, function(x){tidy_spot_files(unlist(spot_files[x]))})
+
+spots <- do.call(rbind, cell_file_list) %>% mutate(Pos_X = as.numeric(Pos_X), Pos_Y = as.numeric(Pos_Y), Pos_Z = as.numeric(Pos_Z)) %>% na.omit
+
+###same_7d 60x detection settings
+
+x <- c(1:length(same_7d_files))
+same_7d_file_list <- lapply(x, function(x){tidy_spot_files(unlist(same_7d_files[x]))})
+
+same_7d_spots <- do.call(rbind, same_7d_file_list) %>% mutate(Pos_X = as.numeric(Pos_X), Pos_Y = as.numeric(Pos_Y), Pos_Z = as.numeric(Pos_Z)) %>% na.omit
+
+
+```
+
+```{r, read in SLIM}
+
+tidy_SLIM_summary <- function(args) {
+  read.csv(args[1], skip = 13, sep = "\t", header = TRUE) %>% 
+    as_tibble() %>% 
+    mutate(day = args[2], 
+           gene = args[3], 
+           image = ifelse(grepl("01", File), "01", 
+                          ifelse(grepl("02", File), "02", "03"))) %>% 
+    select(gene, day, image, Cell, everything(), -File)
+}
+
+
+files <- list(c("Results/SLIM/_FISH-QUANT__threshold_spots__SLIM_200304.txt", 7, "Col12a1"),
+             c("Results/SLIM/_FISH-QUANT__threshold_spots_osbpl3_200304.txt", 7, "Osbpl3"),
+             c("Results/SLIM/_FISH-QUANT__threshold_sdc2_spots_200304.txt", 7, "Sdc2"),
+             c("Results/SLIM/_FISH-QUANT__threshold_spots_SLIM_Serpinf2_200303.txt", 7, "Serpinf2"))
+
+
+x = c(1:4)
+FISH_SLIM_list <- lapply(x, function(x){tidy_SLIM_summary(unlist(files[x]))})
+
+FISH_SLIM <- do.call(rbind, FISH_SLIM_list)
+
+```
+
+```{r,  FISH_analysis}
+FISH %>% filter(day == 7) %>% ggplot(aes(x = gene, y = N_thres_Total, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.1, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE)
+
+FISH %>% filter(day == 7) %>% ggplot(aes(x = gene, y = AREA_cell, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.1, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE)
+
+FISH %>% filter(day == 21) %>% ggplot(aes(x = gene, y = N_thres_Total, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.1, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE)
+
+FISH %>% filter(day == 21) %>% ggplot(aes(x = gene, y = AREA_cell, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.1, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE)
+```
+
+```{r, }
+
+same_7d_spots %>% select(day, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-day,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = day, fill = day)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot()
+
+same_7d_spots %>% select(day, AMP, INT_raw, INT_filt) %>% gather(-day,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = day, fill = day)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot() + ylim(0,2000)
+```
+
+
+```{r, spot_analysis}
+
+comparisons <- list(c("Col12a1", "Osbpl3"), c("Col12a1", "Sdc2"), c("Col12a1", "Serpinf2"), c("Osbpl3", "Sdc2"), c("Osbpl3", "Serpinf2"), c("Sdc2", "Serpinf2"))
+
+spots %>% filter(day == 7) %>% ggplot(aes(x = gene, y = Pos_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test")
+
+spots %>% filter(day == 7) %>% group_by(gene, image, cell) %>% summarise(mean_Z = mean(Pos_Z, na.rm = TRUE), med_Z = median(Pos_Z, na.rm = TRUE)) %>% ggplot(aes(x = gene, y = mean_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test")
+
+spots %>% filter(day == 7) %>% ggplot(aes(Pos_Z, col = gene)) + stat_ecdf() + theme_cowplot()
+
+
+spots %>% mutate(Pos_Z = as.numeric(Pos_Z)) %>%  group_by(gene, day, image) %>% summarise(mean_Z = mean(Pos_Z, na.rm = TRUE), med_Z = median(Pos_Z, na.rm = TRUE), max_Z = max(Pos_Z, na.rm = TRUE), min_Z = min(Pos_Z, na.rm = TRUE), n = n()) %>% View()
+
+### 21d
+
+FF_comparisons <- list(c("Col12a1", "FF_Col12a1"), c("Osbpl3", "FF_Osbpl3"), c("Sdc2", "FF_Sdc2"), c("Serpinf2", "FF_Serpinf2"))
+
+spots %>% filter(day == 21) %>% ggplot(aes(x = gene, y = Pos_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = FF_comparisons, method = "wilcox.test")
+
+spots %>% filter(day == 21, !str_detect(gene, "FF")) %>% ggplot(aes(Pos_Z, col = gene)) + stat_ecdf() + theme_cowplot()
+
+```
+
+```{r, spots with quartiles}
+iPos <- spots %>% group_by(gene,day,image) %>% summarize(imax_Z = max(Pos_Z), imin_Z = min(Pos_Z))
+cPos <- spots %>% group_by(gene, day, image, cell) %>% summarize(cmax_Z = max(Pos_Z), cmin_Z = min(Pos_Z))
+Pos <- left_join(cPos, iPos)
+
+Pos_spots <- left_join(spots, Pos) %>% mutate(i2 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.5 + imin_Z), "B2", "A2"), 
+                                              c2 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.5 + cmin_Z), "B2", "A2"),
+                                              i3 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.66 + imin_Z), "B3", ifelse(Pos_Z < ((imax_Z - imin_Z)* 0.33 + imin_Z), "A3", "M")),
+                                              c3 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.66 + cmin_Z), "B3", ifelse(Pos_Z < ((cmax_Z - cmin_Z)* 0.33 + cmin_Z), "A3", "M")),
+                                              i4 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.75 + imin_Z), "B4", ifelse(Pos_Z < ((imax_Z - imin_Z)* 0.25 + imin_Z), "A4", "M")),
+                                              c4 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.75 + cmin_Z), "B4", ifelse(Pos_Z < ((cmax_Z - cmin_Z)* 0.25 + cmin_Z), "A4", "M")))
+
+
+Pos_spots %>% filter(day == 7) %>% ggplot(aes(x = gene, fill = i2)) + geom_bar(position = "fill") + theme_cowplot()
+
+
+```
+
+```{r, FF_SLIM}
+FF_SLIM <- read.csv("Results/SLIM/_FISH-QUANT__all_spots__FF_needs thresh_200304.txt", skip = 13, sep = "\t", header = TRUE) %>% 
+    as_tibble() %>% 
+    mutate(day = 7, 
+           gene = "FF", 
+           image = ifelse(grepl("01", File), "01", 
+                          ifelse(grepl("02", File), "02", "03"))) %>% 
+    select(gene, day, image, Cell, everything(), -File)
+
+FF_SLIM %>% filter(SigmaX < 75, SigmaX > 225, SigmaZ < 225, SigmaX > 500, BGD < 1000, BGD > 2250, AMP < 125, AMP > 275,INT_filt < 85, INT_filt < 150, INT_raw < 1500, INT_raw > 2500)
+
+###none pass filters
+
+```
+
+
+```{r,  SLIM plots}
+comparisons <- list(c("Col12a1", "Osbpl3"), c("Col12a1", "Sdc2"), c("Col12a1", "Serpinf2"), c("Osbpl3", "Sdc2"), c("Osbpl3", "Serpinf2"), c("Sdc2", "Serpinf2"))
+
+FISH_SLIM %>% ggplot(aes(x = gene, y = Pos_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test")
+
+FISH_SLIM %>% filter(day == 7) %>% ggplot(aes(Pos_Z, col = gene)) + stat_ecdf() + theme_cowplot()
+
+###plots for presentation
+comp <- list(c("Col12a1", "Sdc2"))
+
+FISH_SLIM %>% filter(gene == "Col12a1" | gene == "Sdc2") %>% ggplot(aes(x = gene, y = Pos_Z, fill = gene)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comp, method = "wilcox.test")
+
+FISH_SLIM %>% filter(gene == "Col12a1" | gene == "Sdc2", day == 7) %>% ggplot(aes(Pos_Z, col = gene)) + stat_ecdf() + theme_cowplot()
+
+
+######
+
+FISH_SLIM %>% mutate(Pos_Z = as.numeric(Pos_Z)) %>%  group_by(gene, day, image) %>% summarise(mean_Z = mean(Pos_Z, na.rm = TRUE), med_Z = median(Pos_Z, na.rm = TRUE), max_Z = max(Pos_Z, na.rm = TRUE), min_Z = min(Pos_Z, na.rm = TRUE), n = n()) %>% View()
+
+iPos <- FISH_SLIM %>% group_by(gene,day,image) %>% summarize(imax_Z = max(Pos_Z), imin_Z = min(Pos_Z))
+cPos <- FISH_SLIM %>% group_by(gene, day, image, Cell) %>% summarize(cmax_Z = max(Pos_Z), cmin_Z = min(Pos_Z))
+Pos <- left_join(cPos, iPos)
+
+Pos_spots <- left_join(FISH_SLIM, Pos) %>% mutate(i2 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.5 + imin_Z), "B2", "A2"), 
+                                              c2 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.5 + cmin_Z), "B2", "A2"),
+                                              i3 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.66 + imin_Z), "B3", ifelse(Pos_Z < ((imax_Z - imin_Z)* 0.33 + imin_Z), "A3", "M")),
+                                              c3 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.66 + cmin_Z), "B3", ifelse(Pos_Z < ((cmax_Z - cmin_Z)* 0.33 + cmin_Z), "A3", "M")),
+                                              i4 = ifelse(Pos_Z > ((imax_Z - imin_Z)* 0.75 + imin_Z), "B4", ifelse(Pos_Z < ((imax_Z - imin_Z)* 0.25 + imin_Z), "A4", "M")),
+                                              c4 = ifelse(Pos_Z > ((cmax_Z - cmin_Z)* 0.75 + cmin_Z), "B4", ifelse(Pos_Z < ((cmax_Z - cmin_Z)* 0.25 + cmin_Z), "A4", "M")))
+
+
+Pos_spots %>% ggplot(aes(x = gene, fill = i2)) + geom_bar(position = "fill") + theme_cowplot()
+
+FISH_SLIM %>% group_by(gene, image, Cell) %>% summarise(n = n()) %>% filter(image != "02") %>% ggplot(aes(x = gene, y = n)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(aes(col = image), position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") 
+
+```
+
+
+
+
+
+

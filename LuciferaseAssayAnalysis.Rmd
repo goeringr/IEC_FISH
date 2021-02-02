@@ -1,0 +1,136 @@
+---
+title: "Luciferase Assays"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(cowplot)
+library(ggpubr)
+```
+
+```{r, First try}
+#first luciferase: 21.01.07
+#differing amounts of PLB (passive lysis buffer) was added to wells to achieve an ideal dilution of cells (20ul, 40ul, and 60ul)
+#each rep is a biological replicate except for 60div and 60trf
+#60div is 1 well with 60uL divided into 3 20uL containing wells (technical replicates)
+#60trf is the same but transfered from a completely separate well (from the clear plate where I could see the monolayers)
+
+T1 <- as_tibble(t(data.frame("PLB_20_FF" = c(1.30E+01,	1.10E+01,	1.80E+01),
+       "pTL005_20_FF" = c(8.74E+07,	6.88E+07,	6.58E+07),
+       "pTL005_40_FF" = c(6.99E+07,	5.74E+07,	5.88E+07),
+       "pTL005_60_FF" = c(7.12E+07,	5.26E+07,	5.52E+07),
+       "pTL005_60div_FF" = c(4.09E+07,	3.57E+07,	3.54E+07),
+       "pTL005_60trf_FF" = c(4.95E+07,	4.91E+07,	4.80E+07),
+       "Lox_20_FF" = c(5.92E+02,	4.14E+02,	4.10E+01),
+       "Lox_40_FF" = c(1.71E+03,	5.85E+02,	9.96E+02),
+       "Lox_60_FF" = c(2.39E+03,	2.12E+02,	2.19E+02),
+       "Lox_60div_FF" = c(1.56E+03,	9.50E+01,	4.00E+01),
+       "Lox_60trf_FF" = c(1.62E+03,	8.70E+01,	4.80E+01),
+       "PLB_20_RE" = c(4.90E+01,	4.80E+01,	5.00E+01),
+       "pTL005_20_RE" = c(2.39E+08,	1.90E+08,	1.81E+08),
+       "pTL005_40_RE" = c(1.97E+08,	1.50E+08,	1.50E+08),
+       "pTL005_60_RE" = c(1.74E+08,	1.21E+08,	1.35E+08),
+       "pTL005_60div_RE" = c(9.05E+07,	7.71E+07,	7.43E+07),
+       "pTL005_60trf_RE" = c(9.19E+07,	9.28E+07,	8.71E+07),
+       "Lox_20_RE" = c(5.72E+02,	5.91E+02,	1.21E+02),
+       "Lox_40_RE" = c(2.03E+03,	1.25E+03,	2.10E+03),
+       "Lox_60_RE" = c(2.65E+03,	4.75E+02,	5.20E+02),
+       "Lox_60div_RE" = c(1.33E+03,	1.33E+02,	8.00E+01),
+       "Lox_60trf_RE" = c(1.36E+03,	1.33E+02,	9.60E+01))), rownames = "sample")
+
+colnames(T1) <- c("sample", "rep1", "rep2", "rep3")
+
+
+T1 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+  gather(-cells,-prep,-luc, key = rep, value = value) %>%
+  spread(luc,value) %>% 
+  ggplot(aes(x = cells, y = FF/RE, col = prep)) + 
+  geom_point(position = position_jitter(width = 0.25), size = 4) + 
+  theme_cowplot() 
+
+T1 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+  gather(-cells,-prep,-luc, key = rep, value = value) %>% 
+  ggplot(aes(x = cells, y = value, col = prep)) + 
+  geom_point(position = position_jitter(width = 0.25), size = 4) + 
+  theme_cowplot() + 
+  facet_grid(.~luc)
+
+T1 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+  gather(-cells,-prep,-luc, key = rep, value = value) %>% 
+  filter(prep %in% c(20,40,60), cells == "pTL005") %>% 
+  ggplot(aes(x = prep, y = value, col = prep)) + 
+  geom_point(position = position_jitter(width = 0.25), size = 4) + 
+  theme_cowplot() + 
+  facet_grid(.~luc)
+
+```
+
+
+```{r, RPL7}
+#first 5'TOP luciferase: 21.01.15
+#all wells have 40uL PLB (passive lysis buffer)
+#cells were either grown normally, starved for 6 hours with 2 hours refeeding or starved for 8 straight hours
+#ran out of s+g for last well (RPL7mut 6sRF2)
+
+RP7 <- as_tibble(t(data.frame("PLB_normal_FF" = c(2.60E+01,	2.60E+01,	2.80E+01),
+       "pTL005_normal_FF" = c(1.28E+08,	1.01E+08,	1.02E+08),
+       "RPL7_normal_FF" = c(7.54E+07,	7.23E+07,	7.97E+07),
+       "RPL7mut_normal_FF" = c(4.00E+07,	4.64E+07,	4.73E+07),
+       "pTL005_6S2RF_FF" = c(1.04E+08,	9.34E+07,	8.19E+07),
+       "RPL7_6S2RF_FF" = c(6.34E+07,	5.87E+07,	7.25E+07),
+       "RPL7mut_6S2RF_FF" = c(2.76E+07,	2.96E+07, NA), #	3.58E+07),
+       "pTL005_8S_FF" = c(9.41E+07,	7.70E+07,	7.23E+07),
+       "RPL7_8S_FF" = c(5.48E+07,	5.35E+07,	5.07E+07),
+       "RPL7mut_8S_FF" = c(3.58E+07,	3.80E+07,	3.60E+07),
+       "PLB_normal_RE" = c(8.00E+01,	7.50E+01,	8.60E+01),
+       "pTL005_normal_RE" = c(2.73E+08,	2.46E+08,	2.58E+08),
+       "RPL7_normal_RE" = c(2.12E+08,	2.15E+08,	2.07E+08),
+       "RPL7mut_normal_RE" = c(2.11E+08,	2.30E+08,	2.53E+08),
+       "pTL005_6S2RF_RE" = c(2.08E+08,	2.14E+08,	1.89E+08),
+       "RPL7_6S2RF_RE" = c(1.61E+08,	1.52E+08,	1.89E+08),
+       "RPL7mut_6S2RF_RE" = c(1.26E+08,	1.28E+08, NA),  #,	7.59E+07),
+       "pTL005_8S_RE" = c(1.88E+08,	1.86E+08,	1.67E+08),
+       "RPL7_8S_RE" = c(1.45E+08,	1.44E+08,	1.39E+08),
+       "RPL7mut_8S_RE" = c(1.54E+08,	1.65E+08,	1.69E+08))), rownames = "sample")
+
+colnames(RP7) <- c("sample", "rep1", "rep2", "rep3")
+
+
+RP7 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+  gather(-cells,-prep,-luc, key = rep, value = value) %>%
+  spread(luc,value) %>% 
+  ggplot(aes(x = cells, y = FF/RE, col = prep)) + 
+  geom_point(position = position_jitter(width = 0.25), size = 4) + 
+  theme_cowplot() 
+
+RP7 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+  gather(-cells,-prep,-luc, key = rep, value = value) %>% 
+  ggplot(aes(x = cells, y = value, col = prep)) + 
+  geom_point(position = position_jitter(width = 0.25), size = 4) + 
+  theme_cowplot() + 
+  facet_grid(.~luc)
+
+RP7 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+    gather(-cells,-prep,-luc, key = rep, value = value) %>%
+    spread(luc,value) %>%  
+    filter(cells != "PLB") %>% 
+    ggplot(aes(x = prep, y = FF/RE, col = cells)) + 
+    geom_point(position = position_jitter(width = 0.25), size = 4) + 
+    theme_cowplot() + 
+    facet_grid(.~cells) +
+    scale_x_discrete(limits = c("normal", "8S", "6S2RF")) +
+    stat_compare_means(comparisons = list(c("normal", "8S"), c("8S", "6S2RF"), c("normal", "6S2RF")), method = "t.test", hide.ns = TRUE)
+
+RP7 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+    gather(-cells,-prep,-luc, key = rep, value = value) %>%
+    spread(luc,value) %>%  
+    filter(cells != "PLB") %>% 
+    ggplot(aes(x = cells, y = FF/RE, col = factor(prep, levels = c("normal", "8S", "6S2RF")))) + 
+    geom_point(position = position_jitter(width = 0.25), size = 4) + 
+    theme_cowplot() + 
+    facet_grid(.~factor(prep, levels = c("normal", "8S", "6S2RF"))) +
+    stat_compare_means(comparisons = list(c("pTL005", "RPL7"), c("RPL7", "RPL7mut"), c("pTL005", "RPL7mut")), method = "t.test") +
+    guides(col = FALSE)
+```
