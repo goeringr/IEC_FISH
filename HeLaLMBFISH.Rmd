@@ -1,0 +1,98 @@
+---
+title: "HeLaLMB"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+```{r,}
+
+hela_summary <- as_tibble(read.csv("21.04.06_HeLa_LMB_FISH/results/__FQ_batch_summary_MATURE_210408.txt", skip = 4, header = TRUE, sep = "\t"))
+
+hela <-  hela_summary %>% 
+  separate(FILE, sep = "_", into = c("HeLa", "gene", "LMB", "image", "STACK", "extra", "extra2")) %>% 
+  mutate(cell = as.numeric(substr(CELL, 6, 6)),
+         image = substr(image,1,2)) %>% 
+  dplyr::select(gene, LMB, image, cell, AREA_cell, N_total, N_thres_Total, N_thres_Nuc)
+
+```
+
+```{r,}
+all_spot_hela <- as_tibble(read.csv("21.04.06_HeLa_LMB_FISH/results/_FISH-QUANT__all_spots_210408.txt", header = TRUE, skip = 13, sep = "\t"))
+
+all_spot_hela <- all_spot_hela %>% separate(File, into = c("HeLa", "gene", "LMB", "image", "STACK"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), image = substr(image,1,2)) %>% select(gene, LMB, image, cell, everything(), -STACK) 
+
+all_spot_hela %>% select(gene, LMB, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-gene,-LMB,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free", nrow =2) + theme_cowplot()
+
+#only Int_raw is different
+all_spot_hela  %>% select(gene,LMB, AMP, INT_raw, INT_filt) %>% gather(-gene,-LMB,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free",nrow = 2) + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+all_spot_hela %>% select(gene,LMB,INT_raw) %>% gather(-gene,-LMB,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(0,3500)  + geom_hline(yintercept = 2000)
+
+all_spot_hela %>% select(gene,LMB,BGD) %>% gather(-gene,-LMB,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(400,1200)  + geom_hline(yintercept = 900)
+
+all_spot_hela %>% select(gene,LMB,Pos_Z) %>% gather(-gene,-LMB,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + geom_hline(yintercept = 1400) + geom_hline(yintercept = 9000)
+
+all_spot_hela %>% select(gene,LMB,SigmaX) %>% gather(-gene,-LMB,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + geom_hline(yintercept = 450)
+
+all_spot_hela %>% select(gene,LMB,SigmaZ) %>% gather(-gene,-LMB,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + geom_hline(yintercept = 750)
+
+
+#really limits spots.
+hela_filt <- all_spot_hela %>% filter(as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 750, as.numeric(Pos_Z) > 1400,as.numeric(Pos_Z) < 9000,  as.numeric(INT_raw) > 2000, as.numeric(BGD) < 1000)
+
+hela_filt %>% group_by(gene,LMB,image,cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = gene, y = numspots, fill = LMB)) + geom_boxplot(position = "dodge", outlier.shape = NA) + theme_cowplot() 
+
+hela_filt %>% group_by(gene,LMB,image,cell) %>% filter(in_Nuc == 1) %>%  summarize(numspots = n()) %>% ggplot(aes(x = LMB, y = numspots)) + geom_boxplot(aes(fill = gene), outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = list(c("LMB", "noLMB")), method = "wilcox.test") + labs(x = "", y = "Spots in Nucleus") + guides(fill = FALSE) + facet_grid(.~gene) + EnvStats::stat_n_text()
+
+hela_filt_summary <- hela_filt %>% 
+    group_by(gene,LMB,image,cell,in_Nuc) %>% 
+    summarize(N_thres_Total = n()) %>%
+    ungroup() %>% 
+    spread(key = in_Nuc, value = N_thres_Total) %>%
+    mutate(n_c_thresh = `1`/`0`) %>% 
+    select(gene, LMB, image,cell, n_c_thresh) %>% 
+    ungroup() 
+
+hela_filt_summary <- hela_filt_summary %>% filter(!(LMB == "LMB" & gene == "pTL005" & image == "02" & cell == 1))
+
+hela_filt_summary %>% ggplot(aes(x = LMB, y = n_c_thresh*100))  + geom_violin(aes(fill = gene)) + geom_boxplot(aes(fill = gene),outlier.shape = NA, width = 0.1) + geom_point(alpha = 0.25, position = "jitter") + theme_cowplot() + stat_compare_means(comparisons = list(c("LMB", "noLMB")), method = "wilcox.test") + labs(x = "", y = "Percent Spots in Nucleus") + guides(fill = FALSE, alpha = FALSE) + facet_grid(.~gene) + scale_fill_manual(values = c("#8be381", "#00a0b0", "#808080")) 
+
+
+```
+
+```{r, }
+
+n_c_thresh <- hela %>% 
+  select(gene, LMB, image, cell, N_thres_Total, N_thres_Nuc) %>%
+  mutate(n_c_thresh = N_thres_Nuc/N_thres_Total) %>% 
+  select(gene,LMB, image, n_c_thresh) %>% 
+  ungroup() 
+
+```
+
+```{r,  }
+
+hela %>% ggplot(aes(x = gene, y = N_thres_Total, fill = LMB))  + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.1, position = position_jitterdodge()) + theme_cowplot()  + labs(x = "", y = "Total Number of Spots")
+
+hela %>% ggplot(aes(x = gene, y = AREA_cell, fill = LMB)) + geom_boxplot(width = 0.25) + geom_point(alpha = 0.1, position = position_jitterdodge()) + theme_cowplot() + labs(x = "", y = "Area")
+
+```
+
+```{r, }
+my_comparisons = list(c("pTL005", "mut3TOP"), c("pTL005", "WT3TOP"),c("mut3TOP", "WT3TOP"))
+
+CAD %>% filter(cell == "neurite") %>% ggplot(aes(x = gene, y = N_thres_Total)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25) + stat_compare_means(comparisons = my_comparisons, method = "wilcox.test") + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("pTL005", "WT3TOP", "mut3TOP"), labels = c("Firefly", "WT 3'TOP", "mut 3'TOP")) + scale_fill_manual(values = c("#00a0b0", "#808080", "#00a0b0")) + scale_alpha_manual(values = c(0.3,1,1))
+
+
+
+n_c_thresh %>% ggplot(aes(x = LMB, y = n_c_thresh)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin(aes(fill = gene)) + geom_boxplot(aes(fill = gene), width = 0.25) + stat_compare_means(comparisons = list(c("LMB","noLMB")), method = "wilcox.test") + theme_cowplot() + guides(fill = FALSE) + labs(x = "", y = "spots in Neurite / Soma") + EnvStats::stat_n_text() + facet_grid(.~gene) + scale_fill_manual(values = c("#00a0b0", "#808080", "#00a0b0"))
+
+
+```

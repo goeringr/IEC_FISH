@@ -1,0 +1,111 @@
+---
+title: "CAD 3'TOPs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+```{r,}
+
+CAD_summary <- as_tibble(read.csv("21.04.06_CAD_3TOP_FISH/results/__FQ_batch_summary_MATURE_210407.txt", skip = 4, header = TRUE, sep = "\t"))
+
+CAD <-  CAD_summary %>% 
+  separate(FILE, sep = "_", into = c("CAD", "gene", "image", "extra", "STACK", "extra2")) %>% 
+  mutate(cell = as.numeric(substr(CELL, 6, 6)), 
+         cell = ifelse(cell %% 2 == 0, "neurite", "soma"),
+         image = substr(image,1,2)) %>% 
+  dplyr::select(gene, image, cell, AREA_cell, N_total, N_thres_Total)
+
+```
+
+```{r,}
+all_spot_cad <- as_tibble(read.csv("21.04.06_CAD_3TOP_FISH/results/_FISH-QUANT__all_spots_210407.txt", header = TRUE, skip = 13, sep = "\t"))
+
+all_spot_cad <- all_spot_cad %>% separate(File, into = c("CAD", "gene","image","stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), cell = ifelse(cell %% 2 == 0, "neurite", "soma"), image = substr(image,1,2)) %>% select(gene, image, cell, everything(), -stack) 
+
+all_spot_cad %>% select(gene,cell, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + facet_wrap(cell~param, scales = "free", nrow =2) + theme_cowplot()
+
+#only Int_raw is different
+all_spot_cad  %>% select(gene,cell, AMP, INT_raw, INT_filt) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + facet_wrap(cell~param, scales = "free",nrow = 2) + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+all_spot_cad %>% select(gene,cell,INT_raw) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(0,1500) + facet_grid(.~cell) + geom_hline(yintercept = 1000)
+
+all_spot_cad %>% select(gene,cell,BGD) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(100,900) + facet_grid(.~cell) + geom_hline(yintercept = 700)
+
+all_spot_cad %>% select(gene,cell,Pos_Z) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + facet_grid(.~cell) + geom_hline(yintercept = 1400) + geom_hline(yintercept = 9000)
+
+all_spot_cad %>% select(gene,cell,SigmaX) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + facet_grid(.~cell) + geom_hline(yintercept = 450)
+
+all_spot_cad %>% select(gene,cell,SigmaZ) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + facet_grid(.~cell) + geom_hline(yintercept = 750)
+
+
+#really limits spots.
+CAD_filt <- all_spot_cad %>% filter(as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 7500, as.numeric(Pos_Z) > 1400,as.numeric(Pos_Z) < 9000,  as.numeric(INT_raw) > 1000, as.numeric(BGD) < 700)
+
+CAD_filt %>% group_by(gene,image,cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = gene, y = numspots, fill = cell)) + geom_boxplot() + theme_cowplot()
+
+CAD_filt %>% group_by(gene,image,cell) %>% summarize(numspots = n()) %>% filter(cell == "neurite") %>% ggplot(aes(x = gene, y = numspots, fill = gene)) + geom_boxplot(outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = list(c("pTL005", "mut3TOP"), c("pTL005", "WT3TOP"),c("mut3TOP", "WT3TOP")), method = "wilcox.test") + labs(x = "", y = "Spots in Neurite") + guides(fill = FALSE)
+
+CADfilt_summary <- CAD_filt %>% group_by(gene,image,cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell, N_thres_Total) %>% 
+  group_by(gene,image) %>% 
+  spread(key = cell, value = N_thres_Total) %>%
+  mutate(n_s_thresh = neurite/soma) %>% 
+  select(gene, image, n_s_thresh) %>% 
+  ungroup() %>% left_join(., CAD_filt %>% group_by(gene,image,cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell, N_thres_Total)) 
+
+CADfilt_summary %>% select(-N_thres_Total) %>% unique() %>% ggplot(aes(x = gene, y = n_s_thresh))  + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene),outlier.shape = NA, width = 0.1) + geom_point(alpha = 0.25, position = "jitter") + theme_cowplot() + stat_compare_means(comparisons = list(c("pTL005", "mut3TOP"), c("pTL005", "WT3TOP"),c("mut3TOP", "WT3TOP")), method = "wilcox.test") + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = FALSE, alpha = FALSE) + scale_x_discrete(limits = c("pTL005", "WT3TOP", "mut3TOP"), labels = c("Firefly", "WT 3'TOP", "mut 3'TOP")) + scale_fill_manual(values = c("#00a0b0", "#808080", "#00a0b0")) + scale_alpha_manual(values = c(0.3,1,1))
+
+
+```
+
+```{r, }
+n_s_tot <- CAD %>% 
+  select(gene, image, cell, N_total) %>% 
+  group_by(image) %>% 
+  mutate(id=rep(1:(n()/2),each = 2)) %>% 
+  spread(key = cell, value = N_total) %>% 
+  mutate(n_s_tot = neurite/soma) %>%
+  select(gene, image, n_s_tot) %>% 
+  ungroup() %>% 
+  mutate(id = c(1:nrow(.)))
+
+n_s_thresh <- CAD %>% 
+  select(gene, image, cell, N_thres_Total) %>% 
+  group_by(image) %>% 
+  mutate(id=rep(1:(n()/2),each=2)) %>% 
+  spread(key = cell, value = N_thres_Total) %>%
+  mutate(n_s_thresh = neurite/soma) %>% 
+  select(gene, image, n_s_thresh) %>% 
+  ungroup() %>% 
+  mutate(id = c(1:nrow(.)))
+
+#join these data sets and merge back with un-normalized data
+
+rel_dat <- left_join(n_s_tot, n_s_thresh)
+```
+
+```{r,  }
+
+CAD %>% ggplot(aes(x = gene, y = N_thres_Total, fill = cell))  + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.1, position = position_jitterdodge()) + theme_cowplot()  + labs(x = "", y = "Total Number of Spots")
+
+CAD %>% ggplot(aes(x = gene, y = AREA_cell, fill = cell)) + geom_boxplot(width = 0.25) + geom_point(alpha = 0.1, position = position_jitterdodge()) + theme_cowplot() + labs(x = "", y = "Area")
+
+```
+
+```{r, }
+my_comparisons = list(c("pTL005", "mut3TOP"), c("pTL005", "WT3TOP"),c("mut3TOP", "WT3TOP"))
+
+CAD %>% filter(cell == "neurite") %>% ggplot(aes(x = gene, y = N_thres_Total)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25) + stat_compare_means(comparisons = my_comparisons, method = "wilcox.test") + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("pTL005", "WT3TOP", "mut3TOP"), labels = c("Firefly", "WT 3'TOP", "mut 3'TOP")) + scale_fill_manual(values = c("#00a0b0", "#808080", "#00a0b0")) + scale_alpha_manual(values = c(0.3,1,1))
+
+
+
+rel_dat %>% ggplot(aes(x = gene, y = n_s_thresh)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25) + stat_compare_means(comparisons = my_comparisons, method = "wilcox.test", label.y = c(0.25,0.3,0.35)) + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite / Soma") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("pTL005", "WT3TOP", "mut3TOP"), labels = c("Firefly", "WT 3'TOP", "mut 3'TOP")) + scale_fill_manual(values = c("#00a0b0", "#808080", "#00a0b0")) + scale_alpha_manual(values = c(0.3,1,1))
+
+
+```

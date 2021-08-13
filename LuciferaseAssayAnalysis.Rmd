@@ -134,3 +134,91 @@ RP7 %>% separate(sample, into = c("cells", "prep", "luc")) %>%
     stat_compare_means(comparisons = list(c("pTL005", "RPL7"), c("RPL7", "RPL7mut"), c("pTL005", "RPL7mut")), method = "t.test") +
     guides(col = FALSE)
 ```
+
+```{r, RPS28}
+#second 5'TOP luciferase: 21.02.10
+#all wells have 40uL PLB (passive lysis buffer)
+#cells were either grown normally, starved for 6 hours with 2 hours refeeding or starved for 8 straight hours
+
+RP28 <- as_tibble(t(data.frame("PLB_normal_FF" = c(4.30E+02,	6.65E+02,	5.50E+02),
+       "RPS28_normal_FF" = c(1.08E+08,	1.16E+08,	1.19E+08),
+       "RPS28mut_normal_FF" = c(1.41E+08,	1.27E+08,	1.38E+08),
+       "RPS28_6S2RF_FF" = c(9.40E+07,	1.07E+08,	1.05E+08),
+       "RPS28mut_6S2RF_FF" = c(1.16E+08,	1.03E+08,	1.11E+08), 
+       "RPS28_8S_FF" = c(9.36E+07,	9.37E+07,	9.68E+07),
+       "RPS28mut_8S_FF" = c(9.88E+07,	1.02E+08,	1.15E+08),
+       "PLB_normal_RE" = c(1.27E+03,	2.26E+03,	1.58E+03),
+       "RPS28_normal_RE" = c(5.02E+08,	5.75E+08,	5.83E+08),
+       "RPS28mut_normal_RE" = c(5.30E+08,	4.70E+08,	4.58E+08),
+       "RPS28_6S2RF_RE" = c(3.35E+08,	3.83E+08,	4.02E+08),
+       "RPS28mut_6S2RF_RE" = c(4.01E+08,	3.75E+08,	3.18E+08), 
+       "RPS28_8S_RE" = c(3.48E+08,	3.80E+08,	3.84E+08),
+       "RPS28mut_8S_RE" = c(3.51E+08,	3.47E+08,	3.66E+08))), rownames = "sample")
+
+colnames(RP28) <- c("sample", "rep1", "rep2", "rep3")
+
+
+RP28 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+  gather(-cells,-prep,-luc, key = rep, value = value) %>%
+  spread(luc,value) %>% 
+  ggplot(aes(x = cells, y = FF/RE, col = prep)) + 
+  geom_point(position = position_jitter(width = 0.25), size = 4) + 
+  theme_cowplot() 
+
+RP28 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+  gather(-cells,-prep,-luc, key = rep, value = value) %>% 
+  ggplot(aes(x = cells, y = value, col = prep)) + 
+  geom_point(position = position_jitter(width = 0.25), size = 4) + 
+  theme_cowplot() + 
+  facet_grid(.~luc)
+
+RP28 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+    gather(-cells,-prep,-luc, key = rep, value = value) %>%
+    spread(luc,value) %>%  
+    filter(cells != "PLB") %>% 
+    ggplot(aes(x = prep, y = FF/RE, col = cells)) + 
+    geom_point(position = position_jitter(width = 0.25), size = 4) + 
+    theme_cowplot() + 
+    facet_grid(.~cells) +
+    scale_x_discrete(limits = c("normal", "8S", "6S2RF")) +
+    stat_compare_means(comparisons = list(c("normal", "8S"), c("8S", "6S2RF"), c("normal", "6S2RF")), method = "t.test", hide.ns = TRUE)
+
+RP28 %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+    gather(-cells,-prep,-luc, key = rep, value = value) %>%
+    spread(luc,value) %>%  
+    filter(cells != "PLB") %>% 
+    ggplot(aes(x = cells, y = FF/RE, col = factor(prep, levels = c("normal", "8S", "6S2RF")))) + 
+    geom_point(position = position_jitter(width = 0.25), size = 4) + 
+    theme_cowplot() + 
+    facet_grid(.~factor(prep, levels = c("normal", "8S", "6S2RF"))) +
+    stat_compare_means(comparisons = list(c("RPS28", "RPS28mut")), method = "t.test") +
+    guides(col = FALSE)
+```
+ 
+#Altogether now!
+ 
+```{r, }
+RP <- bind_rows(RP7,RP28)
+
+RP %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+    gather(-cells,-prep,-luc, key = rep, value = value) %>%
+    filter(cells != "PLB") %>% 
+    spread(luc,value) %>%  
+    ggplot(aes(x = prep, y = FF/RE, col = cells)) + 
+    geom_point(position = position_jitter(width = 0.25), size = 4) + 
+    theme_cowplot() + 
+    facet_grid(.~cells) +
+    scale_x_discrete(limits = c("normal", "8S", "6S2RF")) +
+    stat_compare_means(comparisons = list(c("normal", "8S"), c("8S", "6S2RF"), c("normal", "6S2RF")), method = "t.test", hide.ns = TRUE)
+
+RP %>% separate(sample, into = c("cells", "prep", "luc")) %>% 
+    gather(-cells,-prep,-luc, key = rep, value = value) %>%
+    filter(cells != "PLB") %>% 
+    spread(luc,value) %>%
+    ggplot(aes(x = cells, y = FF/RE, col = factor(prep, levels = c("normal", "8S", "6S2RF")))) + 
+    geom_point(position = position_jitter(width = 0.25), size = 4) + 
+    theme_cowplot() + 
+    facet_grid(.~factor(prep, levels = c("normal", "8S", "6S2RF"))) +
+    stat_compare_means(comparisons = list(c("pTL005", "RPL7"), c("pTL005", "RPS28"), c("RPL7", "RPL7mut"), c("pTL005", "RPL7mut"), c("RPS28", "RPS28mut"), c("pTL005", "RPS28mut")), method = "t.test") +
+    guides(col = FALSE)
+```

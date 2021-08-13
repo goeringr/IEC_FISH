@@ -1,0 +1,295 @@
+---
+title: "FISH analysis for Neurons"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+## This code is useful for analyzing neurite vs soma spot data from FISH-quant
+### This example starts with the summary Mature save file from Batch mode
+
+```{r,read in FISH-quant summary dat}
+
+#for some reason I have two different summary files
+
+CAD28_summary <- as_tibble(read.csv("__FQ_batch_summary2_MATURE_201102.txt", skip = 4, header = TRUE, sep = "\t"))
+CAD28_more_summary <- as_tibble(read.csv("__FQ_batch_summary2_MATURE_201104.txt", skip = 4, header = TRUE, sep = "\t"))
+
+
+CAD28 <- rbind(CAD28_summary, CAD28_more_summary) %>% # this combines the two data files
+  separate(FILE, sep = "_", into = c("gene", "image", "extra", "STACK", "extra2", "outline")) %>% # this organizes the columns and may be different depending on your image names
+  mutate(cell = as.numeric(substr(CELL, 6, 6)), # cleans the cell number
+         cell = ifelse(cell %% 2 == 0, "neurite", "soma")) %>% # assigns even cells as neurites and odd cells as somas
+  dplyr::select(gene, image, cell, AREA_cell, N_total, N_thres_Total) # keep the good stuff
+
+```
+
+## Sometimes we are interested in more than just the aboslute number of spots in the neurite vs the soma
+### here we calculate spots in neurite relative to the spots in their soma. This is a ratio but can be thought of as a percent localized since the soma contributes many more spots than the neuite
+
+```{r, compare neurites to their somas}
+#this creates neurite/soma values for total spots
+n_s_tot <- CAD28 %>% 
+  select(gene, image, cell, N_total) %>% 
+  group_by(image) %>% # group by cells in image
+  mutate(id=rep(1:(n()/2),each = 2)) %>% # add a unique ID to keep R happy
+  spread(key = cell, value = N_total) %>% # for each cell spread the total spots between neurite and soma
+  mutate(n_s_tot = neurite/soma) %>% # calculate total spots neurite/soma
+  select(gene, image, n_s_tot) %>% # keep the good stuff
+  ungroup() %>% 
+  mutate(id = c(1:nrow(.)))
+
+# this creates neurite/soma values for thesholded spots (same as above)
+n_s_thresh <- CAD28 %>% 
+  select(gene, image, cell, N_thres_Total) %>% 
+  group_by(image) %>% 
+  mutate(id=rep(1:(n()/2),each=2)) %>% 
+  spread(key = cell, value = N_thres_Total) %>%
+  mutate(n_s_thresh = neurite/soma) %>% 
+  select(gene, image, n_s_thresh) %>% 
+  ungroup() %>% 
+  mutate(id = c(1:nrow(.)))
+
+# join these data sets and merge back with un-normalized data
+
+rel_dat28 <- left_join(n_s_tot, n_s_thresh)
+```
+
+## Now for some sweet plots
+
+```{r,  QC plots for sanity}
+# its good to check that your somas have more spots than neurites
+CAD28 %>% ggplot(aes(x = gene, y = N_thres_Total, fill = cell)) + 
+  geom_boxplot(width = 0.25) + 
+  geom_point(alpha = 0.1, position = position_jitterdodge()) + 
+  theme_cowplot()  + 
+  labs(x = "", y = "Total Number of Thresholded Spots")
+
+# its also useful to see that your neurites/somas are simlar sizes across conditions
+CAD28 %>% ggplot(aes(x = gene, y = AREA_cell, fill = cell)) + 
+  geom_boxplot(width = 0.25) + 
+  geom_point(alpha = 0.1, position = position_jitterdodge()) + 
+  theme_cowplot() + 
+  labs(x = "", y = "Cell Area (pixels)")
+
+```
+
+## These plots are probably more interesting
+
+```{r, Final plots for localization}
+my_comparisons = list(c("005", "28"), c("005", "28mut"), c("28","28mut")) # this is for stat_compare_means()
+
+# looking at absolute spots in the neurites
+CAD28 %>% 
+  filter(cell == "neurite") %>% # only want the neurites
+  ggplot(aes(x = gene, y = N_thres_Total, fill = gene, alpha = gene)) + 
+  geom_point(alpha = 0.1, position = "jitter") + 
+  geom_violin() + 
+  geom_boxplot(width = 0.25) + 
+  stat_compare_means(comparisons = my_comparisons, method = "wilcox.test") + 
+  theme_cowplot() + 
+  guides(fill = FALSE, alpha = FALSE) + 
+  labs(x = "", y = "Thresholded Spots in Neurite") + 
+  EnvStats::stat_n_text() + 
+  scale_x_discrete(limits = c("005", "28", "28mut"), 
+                   labels = c("FF", "RPS28", "RPS28mut")) + 
+  scale_fill_manual(values = c("#808080", "#b82080", "#b82080")) + 
+  scale_alpha_manual(values = c(1,1,0.25))
+
+
+# this normalizes neurite spots to soma spots
+rel_dat28 %>% 
+  ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene)) + 
+  geom_point(alpha = 0.1, position = "jitter") + 
+  geom_violin() + 
+  geom_boxplot(width = 0.25) + 
+  stat_compare_means(comparisons = my_comparisons, method = "wilcox.test") + 
+  theme_cowplot() + 
+  guides(fill = FALSE, alpha = FALSE) + 
+  labs(x = "", y = "spots in Neurite / Soma") + 
+  EnvStats::stat_n_text() + 
+  scale_x_discrete(limits = c("005", "28", "28mut"), 
+                   labels = c("FF", "RPS28", "RPS28mut")) + 
+  scale_fill_manual(values = c("#808080", "#b82080", "#b82080")) + 
+  scale_alpha_manual(values = c(1,1,0.25))
+
+
+```
+
+# Another way to analyze Fish-quant data is to use ALL the spots!
+## This code is useful for analyzing neurite vs soma spot data from FISH-quant
+### This example starts with the All spots save file from Batch mode
+
+```{r, read in all spot data}
+all_spot_cad <- as_tibble(read.csv("21.04.06_CAD_3TOP_FISH/results/_FISH-QUANT__all_spots_210407.txt", header = TRUE, skip = 13, sep = "\t"))
+
+all_spot_cad <- all_spot_cad %>% 
+  separate(File, into = c("CAD", "gene","image","stack"), sep = "_") %>% # this may change depending on your image names
+  mutate(cell = as.numeric(substr(Cell, 6, 6)), # clean up cell numbers
+         cell = ifelse(cell %% 2 == 0, "neurite", "soma"), # assign neurite vs soma (even vs odd)
+         image = substr(image,1,2)) %>% # clean up image numbers
+  select(gene, image, cell, everything(), -stack) # keep the good stuff
+
+```
+
+## now to filter all the spot data together
+
+```{r, filter some spots!}
+# a fast look at some different spot parameters in soma v neurite
+all_spot_cad %>% 
+  select(gene, cell, SigmaX, SigmaZ, BGD, Pos_Z) %>% 
+  gather(-gene,-cell,key = "param", value = "value") %>% 
+  mutate(value = as.numeric(value)) %>% 
+  ggplot(aes(y=value, group = gene, fill = gene)) + 
+  geom_density(alpha = 0.5) + 
+  facet_wrap(cell~param, scales = "free", nrow =2) + 
+  theme_cowplot()
+
+# now the intensity spot parameters
+all_spot_cad  %>% 
+  select(gene, cell, AMP, INT_raw, INT_filt) %>% 
+  gather(-gene,-cell,key = "param", value = "value") %>% 
+  mutate(value = as.numeric(value)) %>% 
+  ggplot(aes(y=value, group = gene, fill = gene)) + 
+  geom_density(alpha = 0.5) +
+  facet_wrap(cell~param, scales = "free",nrow = 2) + 
+  theme_cowplot() +
+  ylim(0,2000)
+
+# a closer look with each parameter This is where you will decide new thresholds
+# The same thresholds should be set for neurites and somas
+all_spot_cad %>% 
+  select(gene,cell,INT_raw) %>% # INT_raw is the parameter to plot
+  gather(-gene,-cell,key = "param", value = "value") %>%
+  mutate(value = as.numeric(value)) %>% 
+  ggplot(aes(y=value, group = gene, fill = gene)) +
+  geom_density(alpha = 0.5) + 
+  theme_cowplot() +
+  ylim(0,1500) + # you may need to reset this depending on your data
+  facet_grid(.~cell) + 
+  geom_hline(yintercept = 1150) # this is your minimum threshold keep spots that are higher!
+
+all_spot_cad %>% 
+  select(gene,cell,BGD) %>% # Background is the parameter to plot
+  gather(-gene,-cell,key = "param", value = "value") %>% 
+  mutate(value = as.numeric(value)) %>%
+  ggplot(aes(y=value, group = gene, fill = gene)) + 
+  geom_density(alpha = 0.5) +
+  theme_cowplot() + 
+  ylim(100,900) + # you may need to reset this depending on your data
+  facet_grid(.~cell) +
+  geom_hline(yintercept = 700) # this is your maximum threshold keep spots that are lower!
+
+all_spot_cad %>% 
+  select(gene,cell,Pos_Z) %>% # position in Z is the parameter to plot
+  gather(-gene,-cell,key = "param", value = "value") %>%
+  mutate(value = as.numeric(value)) %>%
+  ggplot(aes(y=value, group = gene, fill = gene)) +
+  geom_density(alpha = 0.5) +
+  theme_cowplot()  + 
+  facet_grid(.~cell) + 
+  geom_hline(yintercept = 1400) + # this is the lower threshold
+  geom_hline(yintercept = 9000) # this is the upper threshold
+
+all_spot_cad %>% 
+  select(gene,cell,SigmaX) %>% # sphericity in XY is the parameter to plot
+  gather(-gene,-cell,key = "param", value = "value") %>% 
+  mutate(value = as.numeric(value)) %>%
+  ggplot(aes(y=value, group = gene, fill = gene)) + 
+  geom_density(alpha = 0.5) +
+  theme_cowplot()  + 
+  facet_grid(.~cell) + 
+  geom_hline(yintercept = 450) # this is the upper threshold
+
+all_spot_cad %>% 
+  select(gene,cell,SigmaZ) %>% # sphericity in Z is the parameter to plot
+  gather(-gene,-cell,key = "param", value = "value") %>% 
+  mutate(value = as.numeric(value)) %>%
+  ggplot(aes(y=value, group = gene, fill = gene)) + 
+  geom_density(alpha = 0.5) + 
+  theme_cowplot() + 
+  facet_grid(.~cell) + 
+  geom_hline(yintercept = 750) # this is the upper threshold
+
+
+# Now that you have plotted and decided where thesholds should be, you must filter the original dataset
+# I like to keep my filtering as simple as possible, usually I only limit INT_raw
+CAD_filt <- all_spot_cad %>% 
+  filter(as.numeric(INT_raw) > 1150, 
+         as.numeric(SigmaX) < 450, 
+         as.numeric(SigmaZ) < 750, 
+         as.numeric(Pos_Z) > 1400,
+         as.numeric(Pos_Z) < 9000, 
+         as.numeric(BGD) < 700)
+
+```
+
+# Now to check if your filtering makes sense
+
+```{r, }
+# plotting total spots per cell can be informative
+# we expect somewhere between 200-500 spots in each soma
+# neurites should have much less spots
+CAD_filt %>% 
+  group_by(gene,image,cell) %>% 
+  summarize(numspots = n()) %>% # sum all spots in a cell (soma or neurite)
+  ggplot(aes(x = gene, y = numspots, fill = cell)) + 
+  geom_boxplot() + 
+  theme_cowplot()
+
+```
+
+# Now to see if your spots are localized
+
+```{r, plots, warning = FALSE}
+# The simplest way to tell is to compare number of spots in the neurite
+CAD_filt %>% 
+  group_by(gene,image,cell) %>%
+  summarize(numspots = n()) %>% # sum all spots in a cell (soma or neurite)
+  filter(cell == "neurite") %>% # only keep neurite spots
+  ggplot(aes(x = gene, y = numspots, fill = gene)) + 
+  geom_boxplot(outlier.shape = NA) +
+  theme_cowplot() +
+  stat_compare_means(comparisons = list(c("pTL005", "mut3TOP"), c("pTL005", "WT3TOP"),c("mut3TOP", "WT3TOP")), method = "wilcox.test") + # These comparisons will likely change
+  labs(x = "", y = "Spots in Neurite") + guides(fill = FALSE)
+
+# Usually a better way is to normalize neurite spots to soma spots (this code is messy)
+CADfilt_norm <- CAD_filt %>% 
+  group_by(gene,image,cell) %>% 
+  summarize(N_thres_Total = n()) %>% # sum all spots in a cell (soma or neurite)
+  ungroup() %>%
+  select(gene, image, cell, N_thres_Total) %>% 
+  group_by(gene,image) %>% 
+  spread(key = cell, value = N_thres_Total) %>%
+  mutate(n_s_thresh = neurite/soma) %>% # calculate neurite spots / soma spots
+  select(gene, image, n_s_thresh) %>% 
+  ungroup() %>% left_join(., CAD_filt %>% 
+                            group_by(gene,image,cell) %>%
+                            summarize(N_thres_Total = n()) %>%
+                            ungroup() %>%
+                            select(gene, image, cell, N_thres_Total)) 
+
+# now plot the normalized data
+CADfilt_norm %>% 
+  select(-N_thres_Total) %>% 
+  unique() %>%
+  ggplot(aes(x = gene, y = n_s_thresh))  + 
+  geom_violin(aes(fill = gene, alpha = gene)) + 
+  geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.1) +
+  geom_point(alpha = 0.25, position = "jitter") +
+  theme_cowplot() +
+  stat_compare_means(comparisons = list(c("pTL005", "mut3TOP"), c("pTL005", "WT3TOP"),c("mut3TOP", "WT3TOP")), method = "wilcox.test") + 
+  labs(x = "", y = "Spots in Neurite/Soma") + # add axis labels
+  guides(fill = FALSE, alpha = FALSE) + 
+  scale_x_discrete(limits = c("pTL005", "WT3TOP", "mut3TOP"), # change the order of x axis
+                   labels = c("Firefly", "WT 3'TOP", "mut 3'TOP")) + # change the name on x axis
+  scale_fill_manual(values = c("#00a0b0", "#808080", "#00a0b0")) + # pick pretty colors!
+  scale_alpha_manual(values = c(0.3,1,1)) # changes the see-through-ness of boxplots
+
+```
+

@@ -1,0 +1,313 @@
+---
+title: "C2bbe1 Larp FISH"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+## Round 1!
+### RPL7 and its mutant were plated at high confluency on glass for 7 days of differentiation. siRNAs were transfected on day -2. cells were prepped for imaging at the end of the 7 day differentiation.
+
+
+```{r, all spot tidy data}
+all_spot_bbe1 <- as_tibble(read.csv("21.06.30_C2bbe1LarpFISH/Results/_FISH-QUANT__all_spots_210702.txt", header = TRUE, skip = 13, sep = "\t"))
+
+all_spot_bbe12 <- as_tibble(read.csv("21.07.03_moreC2bbe1/Results/_FISH-QUANT__all_spots_210703.txt", header = TRUE, skip = 13, sep = "\t"))
+
+##fix file names
+all_spot_bbe1 <- rbind(all_spot_bbe1, all_spot_bbe12) %>% mutate(File = ifelse(startsWith(substr(File, 8, nchar(File)-10), prefix = "7d_"), substr(File, 11, nchar(File)-10), substr(File, 8, nchar(File)-10)))  
+
+all_spot_bbe1 <- all_spot_bbe1 %>% separate(File, into = c("gene", "siRNA", "image"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), image = substr(image,1,2)) %>% select(gene, siRNA, image, cell, everything()) %>% mutate(siRNA = ifelse(siRNA == "none", siRNA, toupper(siRNA)))
+
+```
+
+```{r, all spot filter}
+all_spot_bbe1 %>% select(gene,siRNA,cell, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free", nrow =2) + theme_cowplot()
+
+#only Int_raw is different
+all_spot_bbe1  %>% select(gene,siRNA,cell, SigmaX, SigmaZ, AMP, INT_filt, INT_raw) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free",nrow = 2) + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+all_spot_bbe1 %>% select(gene,siRNA, cell,INT_raw) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(500,3500)  + geom_hline(yintercept = 1500)
+
+all_spot_bbe1 %>% select(gene,siRNA,cell,BGD) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha =0.5) + theme_cowplot() + ylim(200,1200)  + geom_hline(yintercept = 775)
+
+all_spot_bbe1 %>% select(gene,siRNA,cell,SigmaX) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()   + geom_hline(yintercept = 250)
+
+all_spot_bbe1 %>% select(gene,siRNA,cell,SigmaZ) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + geom_hline(yintercept = 750)
+
+
+#really limits spots.
+bbe1_filt <- all_spot_bbe1 %>% filter(as.numeric(INT_filt) > 1300, as.numeric(INT_raw) < 4000 ) #, as.numeric(BGD) > 750, as.numeric(Pos_Z) > 450, as.numeric(Pos_Z) < 10000)
+```
+
+```{r, }
+bbe1_filt %>% group_by(gene,siRNA,image,cell) %>% summarize(numspots = n()) %>% filter(siRNA != "none") %>% ggplot(aes(x = siRNA, y = numspots, fill = siRNA)) + geom_boxplot() + theme_cowplot() + facet_wrap(.~gene, nrow = 3) + EnvStats::stat_n_text(y.pos = -25) + stat_compare_means(comparisons = list(c("NC1", "LARP1"), c("NC1", "LARP6"),c("NC1", "LARP7"), c("NC1", "SSB")), method = "wilcox.test") + scale_x_discrete(limits = c("NC1", "SSB", "LARP1", "LARP6", "LARP7"))
+
+med_line <- bbe1_filt %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2000) / 1000)) %>% filter(gene == "FF", siRNA == "NC1") %>% pull(Position_In_Z) %>% median(na.rm = TRUE)
+
+bbe1_filt %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2000) / 1000)) %>% filter(siRNA == "NC1") %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene))+ geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut"),c("RPL7", "RPL7mut")), method = "wilcox.test") + labs(x = "", y = "Position in Z") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~siRNA) + geom_hline(yintercept = med_line, linetype = "dashed") + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.5))
+
+#RPS28 color = "#b82080"
+
+med_line_dat <- bbe1_filt %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2000) / 1000)) %>% filter(siRNA == "NC1") %>% group_by(gene,siRNA) %>% summarise(med = median(Position_In_Z, na.rm = TRUE))
+
+bbe1_filt %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2000) / 1000)) %>% filter(siRNA != "none") %>% left_join(., med_line_dat, by = "gene") %>% ggplot(aes(x = siRNA.x, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("NC1", "LARP1"), c("NC1", "LARP6"),c("NC1", "LARP7"), c("NC1", "SSB")),label.y = c(6,7,8,5), method = "wilcox.test") + labs(x = "", y = "Position in Z (um)") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~gene, nrow = 3) + geom_hline(aes(yintercept = med), linetype = "dashed") + scale_x_discrete(limits = c("NC1", "SSB", "LARP1", "LARP6", "LARP7"))  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.5)) + EnvStats::stat_n_text(y.pos = -2) + coord_cartesian(ylim = c(-2.5,8.5))
+
+```
+
+
+## Round 2!
+## This time a little different... 
+### RPS28 and its mutant were dox induced plated on glass and siRNA transfected all on the first day of differentiation, cells were plated and transfected at high conlfluency then differentiated for 7 days. 
+#however, I will admit, these didnt go down as confluent as I had hoped....
+
+```{r, 28dat}
+all_spot_28<- as_tibble(read.csv("21.07.12C2bbe128/Results/_FISH-QUANT__all_spots_210713.txt", header = TRUE, skip = 13, sep = "\t"))
+
+all_spot_28 <- all_spot_28 %>% separate(File, into = c("C2bbe1","sd","gene", "siRNA", "image","stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), image = substr(image,1,2)) %>% select(gene, siRNA, image, cell, everything(), -C2bbe1, -sd, -stack, -Cell) 
+
+```
+
+```{r, 28 spot filter}
+all_spot_28 %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,gene,siRNA,cell, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free", nrow =2) + theme_cowplot()
+
+#only Int_raw is different
+all_spot_28  %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,gene,siRNA,cell, SigmaX, SigmaZ, AMP, INT_filt, INT_raw) %>% gather(-group,-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free",nrow = 2) + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+all_spot_28 %>% select(gene,siRNA, cell,INT_raw) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(200,1500)  + geom_hline(yintercept = 500)
+
+all_spot_28 %>% select(gene,siRNA,cell,BGD) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha =0.5) + theme_cowplot() + ylim(50,400)  + geom_hline(yintercept = 275)
+
+all_spot_28 %>% select(gene,siRNA,cell,SigmaX) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()   + geom_hline(yintercept = 250)
+
+all_spot_28 %>% select(gene,siRNA,cell,SigmaZ) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + geom_hline(yintercept = 750)
+
+
+#really limits spots.
+filt28 <- all_spot_28 %>% filter(as.numeric(INT_raw) > 500, as.numeric(INT_raw) < 2000, as.numeric(BGD) < 275) #, as.numeric(Pos_Z) > 450, as.numeric(Pos_Z) < 10000)
+```
+
+```{r, }
+filt28 %>% group_by(gene,siRNA,image,cell) %>% summarize(numspots = n()) %>% filter(siRNA != "none") %>% ggplot(aes(x = siRNA, y = numspots, fill = siRNA)) + geom_boxplot() + theme_cowplot() + facet_wrap(.~gene, nrow = 3) + EnvStats::stat_n_text(y.pos = -25) + stat_compare_means(comparisons = list(c("NC1", "LARP1"), c("NC1", "LARP6"),c("NC1", "LARP7"), c("NC1", "SSB")), method = "wilcox.test") + scale_x_discrete(limits = c("NC1", "SSB", "LARP1", "LARP6", "LARP7")) + guides(fill = FALSE)
+
+filt28 %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(gene != "Lox") %>% ggplot(aes(x= image, y = Position_In_Z)) + geom_boxplot() + theme_cowplot() + facet_grid(siRNA~gene) + coord_cartesian(ylim = c(-0,5))
+
+
+med_line <- filt28 %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(gene == "FF", siRNA == "NC1") %>% pull(Position_In_Z) %>% median(na.rm = TRUE)
+
+#filter(!(gene == "RPS28" & image == "03"), !(gene == "RPS28mut" & image == "02"))
+
+filt28 %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(siRNA == "NC1") %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene))+ geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("FF", "RPS28"), c("FF", "RPS28mut"),c("RPS28", "RPS28mut")), method = "wilcox.test") + labs(x = "", y = "Position in Z") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~siRNA) + geom_hline(yintercept = med_line, linetype = "dashed") + scale_fill_manual(values = c("#808080","#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5))
+
+#oh boy....
+
+med_line_dat <- filt28 %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(siRNA == "NC1") %>% group_by(gene,siRNA) %>% summarise(med = median(Position_In_Z, na.rm = TRUE))
+
+filt28 %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(siRNA != "none") %>% left_join(., med_line_dat, by = "gene") %>% ggplot(aes(x = siRNA.x, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene),outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("NC1", "LARP1"), c("NC1", "LARP6"),c("NC1", "LARP7"), c("NC1", "SSB")), label.y = c(7,8,9,6), method = "wilcox.test") + labs(x = "", y = "Position in Z (um)") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~gene, nrow = 3) + geom_hline(aes(yintercept = med), linetype = "dashed") + scale_x_discrete(limits = c("NC1", "SSB", "LARP1", "LARP6", "LARP7")) + scale_fill_manual(values = c("#808080","#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5)) + EnvStats::stat_n_text(y.pos = -2) + coord_cartesian(ylim = c(-2.5,10))
+
+```
+
+## Round 3!
+## same as last time... 
+### RPL7 and its mutant were dox induced plated on glass and siRNA transfected all on the first day of differentiation, cells were plated and transfected at high conlfluency then differentiated for 7 days. 
+#however, I will admit, these also didnt go down as confluent as I had hoped....
+
+```{r, }
+all_spot_7<- as_tibble(read.csv("21.07.20_C2bbe1RP7FISHLarp/Results/_FISH-QUANT__all_spots_210720.txt", header = TRUE, skip = 13, sep = "\t"))
+
+all_spot_7 <- all_spot_7 %>% separate(File, into = c("C2bbe1","sd","gene", "siRNA", "image","stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), image = substr(image,1,2)) %>% select(gene, siRNA, image, cell, everything(), -C2bbe1, -sd, -stack, -Cell) 
+
+```
+
+```{r, }
+all_spot_7 %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,gene,siRNA,cell, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free", nrow =2) + theme_cowplot()
+
+#only Int_raw is different
+all_spot_7  %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,gene,siRNA,cell, SigmaX, SigmaZ, AMP, INT_filt, INT_raw) %>% gather(-group,-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free",nrow = 2) + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+all_spot_7 %>% select(gene,siRNA, cell,INT_raw) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(400,2000)  + geom_hline(yintercept = 1400)
+
+all_spot_7 %>% select(gene,siRNA,cell,BGD) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha =0.5) + theme_cowplot() + ylim(50,1000)  + geom_hline(yintercept = 575)
+
+all_spot_7 %>% select(gene,siRNA,cell,SigmaX) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()   + geom_hline(yintercept = 250)
+
+all_spot_7 %>% select(gene,siRNA,cell,SigmaZ) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + geom_hline(yintercept = 750)
+
+
+#really limits spots.
+filt7 <- all_spot_7 %>% filter(as.numeric(INT_raw) > 1400, as.numeric(INT_raw) < 4000, as.numeric(BGD) < 500) #, as.numeric(Pos_Z) > 450, as.numeric(Pos_Z) < 10000)
+```
+
+```{r, }
+filt7 %>% group_by(gene,siRNA,image,cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = gene, y = numspots, fill = gene)) + geom_boxplot() + theme_cowplot() + facet_wrap(.~siRNA) + EnvStats::stat_n_text(y.pos = -25) + stat_compare_means(comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut"),c("RPL7", "RPL7mut")), method = "wilcox.test") + guides(fill = FALSE)
+
+#image 03 is weird
+filt7 %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% ggplot(aes(x= image, y = Position_In_Z)) + geom_boxplot() + theme_cowplot() + facet_wrap(.~gene)
+
+med_line <- filt7 %>% filter(!(gene == "RPL7" & image == "03")) %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(gene == "FF", siRNA == "NC1") %>% pull(Position_In_Z) %>% median(na.rm = TRUE)
+
+filt7 %>% filter(gene != "Lox", !(gene == "RPL7" & image == "03")) %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(siRNA == "NC1") %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene))+ geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut"),c("RPL7", "RPL7mut")), method = "wilcox.test") + labs(x = "", y = "Position in Z") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~siRNA) + geom_hline(yintercept = med_line, linetype = "dashed") + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.5))
+
+# take more pics??
+# cant =[
+
+```
+
+## Round 4!
+## 10 days of differentiation!
+### RPS28 and its mutant were dox induced plated on glass and siRNA transfected all on the first day of differentiation, cells were plated and transfected at high conlfluency then differentiated for 10 days. 
+```{r, }
+spot10d_28 <- as_tibble(read.csv("21.07.30_10dRPS28/Results/_FISH-QUANT__all_spots_210731.txt", header = TRUE, skip = 13, sep = "\t"))
+spot10d_28_2 <- as_tibble(read.csv("21.07.30_10dRPS28/Results/_FISH-QUANT__all_spots_210803.txt", header = TRUE, skip = 13, sep = "\t"))
+
+spot10d_28 <- rbind(spot10d_28,spot10d_28_2) %>% separate(File, into = c("C2bbe1","sd","gene", "siRNA", "image","stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), image = substr(image,1,2)) %>% select(gene, siRNA, image, cell, everything(), -C2bbe1, -sd, -stack, -Cell) 
+
+```
+
+```{r, }
+spot10d_28 %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,gene,siRNA,cell, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free", nrow =2) + theme_cowplot()
+
+#only Int_raw is different
+spot10d_28  %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,gene,siRNA,cell, SigmaX, SigmaZ, AMP, INT_filt, INT_raw) %>% gather(-group,-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free",nrow = 2) + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+spot10d_28 %>% select(gene,siRNA, cell,INT_raw) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(250,1250)  + geom_hline(yintercept = 550)
+
+spot10d_28 %>% select(gene,siRNA,cell,BGD) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha =0.5) + theme_cowplot() + ylim(50,500)  + geom_hline(yintercept = 400)
+
+spot10d_28 %>% select(gene,siRNA,cell,SigmaX) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()   + geom_hline(yintercept = 250)
+
+spot10d_28 %>% select(gene,siRNA,cell,SigmaZ) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + geom_hline(yintercept = 750)
+
+
+#really limits spots.
+filt10d_28 <- spot10d_28 %>% filter(as.numeric(INT_raw) > 550, as.numeric(INT_raw) < 4000) #, as.numeric(Pos_Z) > 450, as.numeric(Pos_Z) < 10000)
+```
+
+```{r, }
+filt10d_28 %>% group_by(gene,siRNA,image,cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = gene, y = numspots, fill = gene)) + geom_boxplot(outlier.shape = NA) + theme_cowplot() + facet_wrap(.~siRNA) + EnvStats::stat_n_text(y.pos = -25) + stat_compare_means(comparisons = list(c("FF", "RPS28"), c("FF", "RPS28mut"),c("RPS28", "RPS28mut")), label.y = c(550,600,650), method = "wilcox.test") + guides(fill = FALSE) + coord_cartesian(ylim = c(0,750))
+
+#image 1 for RPS28 is weird.
+filt10d_28 %>% filter(gene != "Lox") %>% ggplot(aes(x = image, y = Pos_Z)) + geom_boxplot() + facet_grid(siRNA~gene) + theme_cowplot() + coord_cartesian(ylim = c(2500,8000)) 
+
+med_line <- filt10d_28 %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(gene == "FF", siRNA == "NC1") %>% pull(Position_In_Z) %>% median(na.rm = TRUE)
+
+filt10d_28 %>% filter(!(gene == "RPS28" & image == "01" & siRNA == "NC1"), gene != "Lox") %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(siRNA == "NC1") %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene))+ geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("FF", "RPS28"), c("FF", "RPS28mut"),c("RPS28", "RPS28mut")), method = "wilcox.test") + labs(x = "", y = "Position in Z") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~siRNA) + geom_hline(yintercept = med_line, linetype = "dashed") + scale_fill_manual(values = c("#808080","#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5))
+
+med_lines <- filt10d_28 %>% filter(!(gene == "RPS28" & image == "01" & siRNA == "NC1"), gene != "Lox") %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% group_by(gene,siRNA) %>% summarise(medline = median(Position_In_Z,na.rm = TRUE)) %>% filter(gene == "FF")
+
+filt10d_28 %>% filter(!(gene == "RPS28" & image == "01" & siRNA == "NC1"), gene != "Lox") %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% left_join(., med_lines, by = "siRNA") %>% ggplot(aes(x = gene.x, y = Position_In_Z)) + geom_violin(aes(fill = gene.x, alpha = gene.x))+ geom_boxplot(aes(fill = gene.x, alpha = gene.x), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("FF", "RPS28"), c("FF", "RPS28mut"),c("RPS28", "RPS28mut")),label.y = c(6.5,7.5,8.5), method = "wilcox.test") + labs(x = "", y = "Position in Z") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~siRNA, nrow = 3) + geom_hline(aes(yintercept = medline), linetype = "dashed") + scale_fill_manual(values = c("#808080","#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5)) + coord_cartesian(ylim = c(-2.5,10)) + EnvStats::stat_n_text(y.pos = -2)
+
+#list of weird images:
+filter(!(gene == "RPS28" & image == "01" & siRNA == "NC1"),
+       !(gene == "RPS28" & image == "03" & siRNA == "SSB"),
+       !(gene == "RPS28" & image == "03" & siRNA == "LARP7"),
+       !(gene == "FF" & image == "03" & siRNA == "LARP7"),
+       !(gene == "RPS28mut" & image == "02" & siRNA == "LARP1"),
+       !(gene == "RPS28mut" & image == "01" & siRNA == "SSB")
+       !(gene == "RPS28mut" & image == "03" & siRNA == "SSB"),
+       !(gene == "RPS28mut" & image == "03" & siRNA == "LARP7"))
+
+med_lines <- filt10d_28 %>% filter(!(gene == "RPS28" & image == "01" & siRNA == "NC1"), gene != "Lox") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(siRNA == "NC1") %>% group_by(gene,siRNA) %>% summarise(medline = median(Position_In_Z, na.rm = TRUE))
+
+filt10d_28 %>% filter(!(gene == "RPS28" & image == "01" & siRNA == "NC1"), gene != "Lox") %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% left_join(., med_lines, by = "gene") %>% ggplot(aes(x = siRNA.x, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("NC1", "SSB"), c("NC1", "LARP1"),c("NC1", "LARP6"), c("NC1", "LARP7")), label.y = c(5.5, 6.5, 7.5, 8.5), method = "wilcox.test") + labs(x = "", y = "Position in Z") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~gene, nrow = 3) + geom_hline(aes(yintercept = medline), linetype = "dashed") + scale_fill_manual(values = c("#808080","#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5)) + scale_x_discrete(limits = c("NC1", "SSB", "LARP1", "LARP6", "LARP7")) + coord_cartesian(ylim = c(-2.5,10)) 
+
+#yay!
+
+```
+
+## Round 5!
+## 10 days of differentiation!
+### RPL7 and its mutant were dox induced plated on glass and siRNA transfected all on the first day of differentiation, cells were plated and transfected at high conlfluency then differentiated for 10 days. 
+```{r, }
+spot10d_7 <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/21.08.02_10dRPL7/Results/_FISH-QUANT__all_spots_210803.txt", header = TRUE, skip = 13, sep = "\t"))
+
+spot10d_7_2 <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/21.08.02_10dRPL7/Results/_FISH-QUANT__all_spots_210804.txt", header = TRUE, skip = 13, sep = "\t"))
+
+spot10d_7 <- rbind(spot10d_7,spot10d_7_2) %>% separate(File, into = c("C2bbe1","sd","gene", "siRNA", "image","stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), image = substr(image,1,2)) %>% select(gene, siRNA, image, cell, everything(), -C2bbe1, -sd, -stack, -Cell) 
+
+```
+
+```{r,}
+spot10d_7 %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,gene,siRNA,cell, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free", nrow =2) + theme_cowplot()
+
+#only Int_raw is different
+spot10d_7  %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,gene,siRNA,cell, SigmaX, SigmaZ, AMP, INT_filt, INT_raw) %>% gather(-group,-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free",nrow = 2) + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+spot10d_7 %>% select(gene,siRNA, cell,INT_raw) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(500,2000)  + geom_hline(yintercept = 1250)
+
+spot10d_7 %>% select(gene,siRNA,cell,BGD) %>% gather(-gene,-siRNA,-cell, key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha =0.5) + theme_cowplot() + ylim(300,1500)  + geom_hline(yintercept = 400)
+
+spot10d_7 %>% select(gene,siRNA,cell,SigmaX) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()   + geom_hline(yintercept = 250)
+
+spot10d_7 %>% select(gene,siRNA,cell,SigmaZ) %>% gather(-gene,-siRNA,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + geom_hline(yintercept = 750)
+
+
+#really limits spots.
+filt10d_7 <- spot10d_7 %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1250, as.numeric(INT_raw) < 4000) #, as.numeric(Pos_Z) > 450, as.numeric(Pos_Z) < 10000)
+```
+
+```{r, }
+filt10d_7 %>% group_by(gene,siRNA,image,cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = gene, y = numspots, fill = gene)) + geom_boxplot(outlier.shape = NA) + theme_cowplot() + facet_wrap(.~siRNA) + EnvStats::stat_n_text(y.pos = -25) + stat_compare_means(comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut"),c("RPL7", "RPL7mut")), method = "wilcox.test") + guides(fill = FALSE)
+
+#image 1 for RPS28 is weird.
+filt10d_7 %>% filter(gene != "Lox") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% ggplot(aes(x = image, y = Position_In_Z)) + geom_boxplot() + facet_grid(siRNA~gene) + theme_cowplot() + coord_cartesian(ylim = c(-2,5))
+
+med_line <- filt10d_7 %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(gene == "FF", siRNA == "NC1") %>% pull(Position_In_Z) %>% median(na.rm = TRUE)
+
+filt10d_7 %>% filter(!(gene == "RPL7" & image == "02" & siRNA == "NC1"),!(gene == "RPL7mut" & image == "04" & siRNA == "NC1"), gene != "Lox") %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(siRNA == "NC1") %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene))+ geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut"),c("RPL7", "RPL7mut")), method = "wilcox.test") + labs(x = "", y = "Position in Z") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~siRNA) + geom_hline(yintercept = med_line, linetype = "dashed") + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.5))
+
+#list of weird images:
+filter(!(gene == "RPL7" & image == "02" & siRNA == "NC1"),
+       !(gene == "RPL7" & image == "02" & siRNA == "none"),
+       !(gene == "RPL7mut" & image == "04 "& siRNA == "NC1"),
+       !(gene == "RPL7mut" & image == "03 "& siRNA == "LARP1"),
+       !(gene == "RPL7mut" & image == "03 "& siRNA == "LARP6"))
+
+med_lines <- filt10d_7  %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(siRNA == "NC1") %>% group_by(gene,siRNA) %>% summarise(medline = median(Position_In_Z, na.rm = TRUE))
+
+filt10d_7 %>% filter(!(gene == "RPL7" & siRNA == "NC1" & image == "02"), gene != "Lox") %>% group_by(gene,siRNA,image,cell) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% left_join(., med_lines, by = "gene") %>% ggplot(aes(x = siRNA.x, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.2) + theme_cowplot() + stat_compare_means(comparisons = list(c("NC1", "SSB"), c("NC1", "LARP1"),c("NC1", "LARP6"), c("NC1", "LARP7")), label.y = c(6,7,8,9), method = "wilcox.test") + labs(x = "", y = "Position in Z") + guides(fill = FALSE, alpha = FALSE) + facet_wrap(.~gene, nrow = 3) + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.5)) + scale_x_discrete(limits = c("none","NC1", "SSB", "LARP1", "LARP6", "LARP7")) + geom_hline(aes(yintercept = medline), linetype = "dashed") + coord_cartesian(ylim = c(0,12))
+
+
+
+```
+
+
+## now by siRNA 
+
+```{r, }
+p <- bind_rows(list("Day-2" = bbe1_filt, "Day10_28" = filt10d_28, "Day10_7" = filt10d_7), .id = "trsfx_day") %>% 
+  filter(siRNA %in% c("SSB","LARP6", "LARP7", "NC1"), 
+         gene != "Lox",
+         !(gene == "RPL7" & siRNA == "NC1" & image == "02" & trsfx_day == "Day10_7"),
+         !(gene == "RPL7mut" & image == "04" & siRNA == "NC1" & trsfx_day == "Day10_7"),
+         !(gene == "RPS28" & image == "01" & siRNA == "NC1" & trsfx_day == "Day10_28")) %>%
+  mutate(Position_In_Z = ifelse(trsfx_day == "Day-2", ((as.numeric(Pos_Z)-2000) / 1000), ((as.numeric(Pos_Z)-3000) / 1000))) 
+
+med_lines <- p %>% filter(gene == "FF") %>% group_by(gene,trsfx_day,siRNA) %>% summarise(medlines = median(Position_In_Z, na.rm = TRUE))
+
+p %>% left_join(.,med_lines) %>% 
+  ggplot(aes(x = gene, y = Position_In_Z)) + 
+  geom_boxplot(aes(fill = gene, alpha = gene),outlier.shape = NA) + 
+  theme_cowplot() +
+  stat_compare_means(comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut")), 
+                      #c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut")), 
+                     label.y = c(4,5,3.5), 
+                     method = "wilcox.test") +
+  facet_grid(siRNA~factor(trsfx_day, levels = c("Day-2", "Day10_7", "Day10_28")), scales = "free_x") +
+  coord_cartesian(ylim = c(-2,8)) +
+  geom_hline(aes(yintercept = medlines), linetype = "dashed") + 
+  scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) +
+  scale_alpha_manual(values = c(1,1,0.5,1,0.5)) +
+  guides(fill = FALSE, alpha = FALSE)
+  
+```

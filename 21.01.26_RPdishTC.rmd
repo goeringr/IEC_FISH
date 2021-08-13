@@ -166,3 +166,116 @@ spots_RP7_filt %>%
 
 
 ```
+
+#RPS28 now
+
+```{r,  read in spots_RP28}
+
+RP28 <- list(c("21.02.11_RP28dishTC/results/7d_Lox_0S_01_#2_STACK__outline_spots_210212.txt" ,"S0", "Lox", "01"),
+c("21.02.11_RP28dishTC/results/7d_Lox_0S_02_#2_STACK__outline_spots_210212.txt" ,"S0", "Lox", "02"),
+c("21.02.11_RP28dishTC/results/7d_Lox_0S_03_#2_STACK__outline_spots_210212.txt" ,"S0", "Lox", "03"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_0S_01_#2_STACK__outline_spots_210212.txt" ,"S0", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_0S_02_#2_STACK__outline_spots_210212.txt" ,"S0", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_2S_01_#2_STACK__outline_spots_210212.txt" ,"S2", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_2S_02_#2_STACK__outline_spots_210212.txt" ,"S2", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_4S_01_#2_STACK__outline_spots_210212.txt" ,"S4", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_4S_02_#2_STACK__outline_spots_210212.txt" ,"S4", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_6S_01_#2_STACK__outline_spots_210212.txt" ,"S6", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_6S_02_#2_STACK__outline_spots_210212.txt" ,"S6", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_6S0.5RF_01_#2_STACK__outline_spots_210212.txt" ,"S6RF0.5", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_6S0.5RF_02_#2_STACK__outline_spots_210212.txt" ,"S6RF0.5", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_6S1RF_01_#2_STACK__outline_spots_210212.txt" ,"S6RF1", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_6S1RF_03_#2_STACK__outline_spots_210212.txt" ,"S6RF1", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_6S2RF_01_#2_STACK__outline_spots_210212.txt" ,"S6RF2", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_6S2RF_02_#2_STACK__outline_spots_210212.txt" ,"S6RF2", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_8S_01_#2_STACK__outline_spots_210212.txt" ,"S8", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28_8S_02_#2_STACK__outline_spots_210212.txt" ,"S8", "RPS28", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_0S_01_#2_STACK__outline_spots_210212.txt" ,"S0", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_0S_02_#2_STACK__outline_spots_210212.txt" ,"S0", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_2S_01_#2_STACK__outline_spots_210212.txt" ,"S2", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_2S_02_#2_STACK__outline_spots_210212.txt" ,"S2", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_2S_03_#2_STACK__outline_spots_210212.txt" ,"S2", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_4S_01_#2_STACK__outline_spots_210212.txt" ,"S4", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_4S_02_#2_STACK__outline_spots_210212.txt" ,"S4", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S_01_#2_STACK__outline_spots_210212.txt" ,"S6", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S_02_#2_STACK__outline_spots_210212.txt" ,"S6", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S_03_#2_STACK__outline_spots_210212.txt" ,"S6", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S0.5RF_01_#2_STACK__outline_spots_210212.txt" ,"S6RF0.5", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S0.5RF_03_#2_STACK__outline_spots_210212.txt" ,"S6RF0.5", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S1RF_01_#2_STACK__outline_spots_210212.txt" ,"S6RF1", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S1RF_02_#2_STACK__outline_spots_210212.txt" ,"S6RF1", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S1RF_03_#2_STACK__outline_spots_210212.txt" ,"S6RF1", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S2RF_01_#2_STACK__outline_spots_210212.txt" ,"S6RF2", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_6S2RF_02_#2_STACK__outline_spots_210212.txt" ,"S6RF2", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_8S_01_#2_STACK__outline_spots_210212.txt" ,"S6RF2", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_8S_02_#2_STACK__outline_spots_210212.txt" ,"S8", "RPS28mut", "02"),
+c("21.02.11_RP28dishTC/results/7d_RPS28mut_8S_03_#2_STACK__outline_spots_210212.txt" ,"S8", "RPS28mut", "02"))
+           
+           
+
+x <- c(1:length(RP28))
+cell_file_list_RP28 <- lapply(x, function(x){tidy_spot_files(unlist(RP28[x]))})
+spots_RP28 <- do.call(rbind, cell_file_list_RP28) 
+
+```
+
+```{r, thresholdmyself_RP28}
+
+spots_RP28 %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot()
+
+
+spots_RP28 %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, AMP, INT_raw, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot() + ylim(0,2000)
+
+##a closer look with each condition.
+spots_RP28 %>% filter(TH_fit == 1) %>% select(gene,INT_raw) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(750,2000) + geom_hline(yintercept = 1000)
+
+spots_RP28 %>% filter(TH_fit == 1) %>% select(gene,BGD) %>% gather(-gene,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(300,1000) + geom_hline(yintercept = 400)
+
+
+#really limits spots.
+spots_RP28_filt <- spots_RP28 %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(BGD) > 400)
+
+```
+
+
+
+```{r, }
+comparisons <- list(c("S0", "S2"), c("S0", "S4"), c("S0", "S6"), c("S0", "S8"), c("S6", "S6RF0.5"), c("S6", "S6RF1"), c("S6", "S6RF2"), c("S6RF2", "S8"))
+
+spots_RP28_filt %>% group_by(gene,day, image, cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = day, y = num_spots)) + geom_violin(aes(fill = gene)) + geom_boxplot(aes(fill = gene), width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + EnvStats::stat_n_text(y.pos = -5) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Number of spots per cell") + facet_wrap(.~gene, nrow = 2)
+
+spots_RP28_filt %>% ggplot(aes(x = gene, y = as.numeric(Pos_Z), fill = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x ="", y = "Raw FISH-quant Pos_Z")
+
+##### 0 -> 13000 nm ~ 13 microns?? uhhh...
+med_line <- spots_RP28_filt %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 2500)/1000) %>% filter(gene == "RPS28mut", day == "S0") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+spots_RP28_filt %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 2500)/1000) %>% filter(gene != "Lox") %>% ggplot(aes(x = day, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + scale_fill_manual(values = c("#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.5)) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + facet_wrap(.~gene, nrow = 3)
+
+```
+
+```{r, }
+
+med_line <- spots_RP28_filt %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 2500)/1000) %>% filter(gene == "RPS28", day == "S0") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+spots_RP28_filt %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 2500)/1000) %>% filter(gene == "RPS28") %>% ggplot(aes(x = day, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = list(c("S0", "S2"), c("S0", "S4"), c("S0", "S6"), c("S0", "S8"), c("S6", "S6RF0.5"), c("S6", "S6RF2")), method = "wilcox.test") + scale_fill_manual(values = c("#b82080",  "#b82080")) + scale_alpha_manual(values = c(1,0.5)) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) 
+
+med_line <- spots_RP28_filt %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 2500)/1000) %>% filter(gene == "RPS28mut", day == "S0") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+spots_RP28_filt %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 2500)/1000) %>% filter(gene == "RPS28mut") %>% ggplot(aes(x = day, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + scale_fill_manual(values = c("#b82080",  "#b82080")) + scale_alpha_manual(values = c(0.5,1,1,0.5)) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) 
+
+```
+
+```{r, }
+
+spots_RP28_filt %>% 
+  mutate(Position_In_Z = (as.numeric(Pos_Z) - 2500)/1000) %>% 
+  filter(gene != "Lox") %>% 
+  ggpubr::ggline(x = "day", y = "Position_In_Z", color = "gene", alpha = "gene", add = "mean", plot_type = "b", size = 1.5, title = "SPOTS YO", xlab = "", ylab = "Position n Z (um)") +
+  theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust = 1)) +
+  scale_color_manual(values = c("#b82080",  "#b82080")) +
+  scale_alpha_manual(values = c(1,0.5)) + 
+  stat_compare_means(aes(group = gene), label = "p.signif", method = "wilcox.test", size = 5, hide.ns = TRUE, label.y = 3.5)  + 
+  stat_summary(aes(x=day, y=Position_In_Z, fill = gene, color = gene, group=gene), geom="ribbon", fun.data = mean_cl_normal, fun.args=list(conf.int=0.95),alpha = 0.2,color = NA) 
+
+
+```

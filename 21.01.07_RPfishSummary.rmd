@@ -299,6 +299,20 @@ samp_comp <- list(c("FF_S8", "FF_S8RF2"), c("RPS28_S8", "RPS28_S8RF2"), c("RPS28
 spots_FF_filt %>% filter(gene != "Lox") %>% unite(col = "sample",gene,day,sep = "_")  %>% filter(grepl(sample, pattern = "FF") | grepl(sample, pattern = "RPS28")) %>%  mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 9000)/1000) %>% ggplot(aes(x = sample, y = Position_In_Z)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin(aes(fill = sample, alpha = sample)) + geom_boxplot(aes(fill = sample, alpha = sample),width = 0.25, outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = samp_comp, method = "wilcox.test", label.y = c(6,6,6,7,8,9,10)) + labs(x ="", y = "Position in Z (um)", title = "7d on membrane") + guides(fill = FALSE, alpha = FALSE) + geom_hline(yintercept = med_line1, size = 1, linetype = "dashed", alpha = 0.25) + geom_hline(yintercept = med_line2, size = 1, linetype = "dashed", alpha = 0.25) + scale_fill_manual(values = c("#808080","#808080","#b82080", "#b82080", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,1,1,0.25,0.25)) + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-1,10)) + theme(axis.text.x=element_text(angle=60,hjust=1,vjust=1))
 ```
 
+```{r, pubplots}
+
+
+spots_FF_filt %>% group_by(gene,day, image, cell) %>% mutate(day = ifelse(day == "S8", "fasting", "refed"), gene = ifelse(gene == "FF", "FIREFLY", ifelse(gene == "Lox", "NTC", gene))) %>% summarise(num_spots = n()) %>% unite(col = "sample",gene,day,sep = "_") %>% ggplot(aes(x = sample, y = num_spots, fill = sample, alpha = sample)) + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text(y.pos = -1.5) + theme(axis.text.x=element_text(angle=60,hjust=1,vjust=1)) + scale_fill_manual(values = c("#808080","#808080","#808080","#808080", "#e8c040", "#e8c040","#e8c040", "#e8c040", "#b82080", "#b82080","#b82080", "#b82080")) + scale_alpha_manual(values = c(0.5,1,0.5,1,0.5,1,0.5,1,0.5,1,0.5,1)) 
+
+spots_FF_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 9000)/1000) %>% filter(gene != "Lox") %>% mutate(gene = ifelse(gene == "FF", "FIREFLY", gene)) %>% ggplot(aes(x = day, y = Position_In_Z)) + geom_point(position = "jitter", alpha = 0.1) + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day),width = 0.1,outlier.shape = NA) + stat_compare_means(comparisons = list(c("S8", "S8RF2")), method = "wilcox.test", label.y = 6) + theme_cowplot() + facet_grid(.~gene) + scale_fill_manual(values = c("#808080", "#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(0.5,1)) + geom_hline(yintercept = 0) +guides(fill = FALSE, alpha = FALSE) + coord_cartesian(ylim = c(-0.1,6.5)) + labs(x ="", y = "Position in Z (um)") + scale_x_discrete(labels = c("fasting", "refed")) +
+  theme(strip.background = element_rect(color = "white", fill = "white"),
+        strip.text.x = element_text(size = 12, color = "Black", face = "bold"),
+        strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+
+```
+
+
+
 ##This weirded me out so I did a time course (on membranes!)
 ##It is pretty convinvingly moving basal as starvation increases
 
@@ -502,3 +516,5 @@ spots_DISH_filt %>% filter(gene != "Lox") %>% mutate(Position_In_Z = (as.numeric
 med_line <- bind_rows(spots_Dish_filt, spots_DISH_filt) %>% filter(gene == "FF", day != "S8", day != "S6RF2") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 3000)/1000) %>% summarize(median(Position_In_Z)) %>% as.numeric()
 
 bind_rows(spots_Dish_filt, spots_DISH_filt) %>% filter(gene %in% c("FF", "RPL7","RPL7mut"), day != "S8", day != "S6RF2") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 3000)/1000)  %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene),width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut")), method = "wilcox.test")  + labs(x = "", y = "Position in Z(um)", title = "7d on dish") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040")) + scale_alpha_manual(values = c(1,1,0.5)) + labs(x = "", y = "Position in Z (um)") + coord_cartesian(ylim = c(-1,22))
+
+```
