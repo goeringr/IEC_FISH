@@ -302,15 +302,14 @@ spots_FF_filt %>% filter(gene != "Lox") %>% unite(col = "sample",gene,day,sep = 
 ```{r, pubplots}
 
 
-spots_FF_filt %>% group_by(gene,day, image, cell) %>% mutate(day = ifelse(day == "S8", "fasting", "refed"), gene = ifelse(gene == "FF", "FIREFLY", ifelse(gene == "Lox", "NTC", gene))) %>% summarise(num_spots = n()) %>% unite(col = "sample",gene,day,sep = "_") %>% ggplot(aes(x = sample, y = num_spots, fill = sample, alpha = sample)) + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text(y.pos = -1.5) + theme(axis.text.x=element_text(angle=60,hjust=1,vjust=1)) + scale_fill_manual(values = c("#808080","#808080","#808080","#808080", "#e8c040", "#e8c040","#e8c040", "#e8c040", "#b82080", "#b82080","#b82080", "#b82080")) + scale_alpha_manual(values = c(0.5,1,0.5,1,0.5,1,0.5,1,0.5,1,0.5,1)) 
+spots_FF_filt %>% group_by(gene,day, image, cell) %>% mutate(day = ifelse(day == "S8", "fasting", "refed"), gene = ifelse(gene == "FF", "Firefly", ifelse(gene == "Lox", "NTC", gene))) %>% summarise(num_spots = n()) %>% unite(col = "sample",gene,day,sep = "_") %>% ggplot(aes(x = sample, y = num_spots, fill = sample, alpha = sample)) + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text(y.pos = -1.5) + theme(axis.text.x=element_text(angle=60,hjust=1,vjust=1)) + scale_fill_manual(values = c("#808080","#808080","#808080","#808080", "#e8c040", "#e8c040","#e8c040", "#e8c040", "#b82080", "#b82080","#b82080", "#b82080")) + scale_alpha_manual(values = c(0.5,1,0.5,1,0.5,1,0.5,1,0.5,1,0.5,1)) 
 
-spots_FF_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 9000)/1000) %>% filter(gene != "Lox") %>% mutate(gene = ifelse(gene == "FF", "FIREFLY", gene)) %>% ggplot(aes(x = day, y = Position_In_Z)) + geom_point(position = "jitter", alpha = 0.1) + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day),width = 0.1,outlier.shape = NA) + stat_compare_means(comparisons = list(c("S8", "S8RF2")), method = "wilcox.test", label.y = 6) + theme_cowplot() + facet_grid(.~gene) + scale_fill_manual(values = c("#808080", "#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(0.5,1)) + geom_hline(yintercept = 0) +guides(fill = FALSE, alpha = FALSE) + coord_cartesian(ylim = c(-0.1,6.5)) + labs(x ="", y = "Position in Z (um)") + scale_x_discrete(labels = c("fasting", "refed")) +
+spots_FF_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 10750)/1000) %>% filter(gene != "Lox") %>% mutate(gene = ifelse(gene == "FF", "Firefly", gene)) %>% ggplot(aes(x = day, y = Position_In_Z))  + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day),width = 0.1, outlier.shape = NA) + stat_compare_means(comparisons = list(c("S8", "S8RF2")), method = "wilcox.test", label.y = 7) + theme_cowplot() + facet_grid(.~gene) + scale_fill_manual(values = c("#808080", "#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(0.5,1)) + guides(fill = FALSE, alpha = FALSE) + coord_cartesian(ylim = c(-0,8)) + labs(x ="", y = "Position in Z (um)") + scale_x_discrete(labels = c("fasting", "refed")) +
   theme(strip.background = element_rect(color = "white", fill = "white"),
         strip.text.x = element_text(size = 12, color = "Black", face = "bold"),
         strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
 
 ```
-
 
 
 ##This weirded me out so I did a time course (on membranes!)
@@ -413,7 +412,7 @@ c("20.12.23_RPS28_starveTC/Results/7d_RPS28mut_6hr_01_#2_STACK__outline_spots_21
 x <- c(1:length(S28TC))
 cell_file_list_S28TC <- lapply(x, function(x){tidy_spot_files(unlist(S28TC[x]))})
 spots_S28TC <- do.call(rbind, cell_file_list_S28TC) 
-spots_S28TC_filt <- spots_S28TC %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1600, as.numeric(BGD) < 1450, as.numeric(Pos_Z) > 750)
+spots_S28TC_filt <- spots_S28TC %>% filter(TH_fit == 1, as.numeric(INT_raw) > 2200, as.numeric(BGD) < 1800, as.numeric(Pos_Z) > 750)
 
 spots_S28TC_filt %>% unite(col = "sample", gene,day,sep = "_") %>% group_by(sample, image, cell)  %>% summarise(num_spots = n()) %>% ggplot(aes(x = sample, y = num_spots, fill = sample)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + EnvStats::stat_n_text(y.pos = -5) + labs(x = "", y = "Number of spots per cell")
 

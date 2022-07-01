@@ -24,19 +24,19 @@ tidy_FISHquant_summary <- function(args) {
 }
 
 
-files <- list(c("Results/__FQ_batch_summary_MATURE_60x_7d_col12a1_200228.txt", 7, "col12a1"),
-             c("Results/__FQ_batch_summary_MATURE_60x_7d_osbpl3_200228.txt", 7, "Osbpl3"),
-             c("Results/__FQ_batch_summary_MATURE_60x_7d_sdc2_200229.txt", 7, "Sdc2"),
-             c("Results/__FQ_batch_summary_MATURE_60x_7d_serpinf2_200229.txt", 7, "Serpinf2"),
-             c("Results/__FQ_batch_summary_MATURE_60x_21d_col12a1_200301.txt", 21, "Col12a1"),
-             c("Results/__FQ_batch_summary_MATURE_60x_21d_osbpl3_200301.txt", 21, "Osbpl3"),
-             c("Results/__FQ_batch_summary_MATURE_60x_21d_sdc2_200301.txt", 21, "Sdc2"),
-             c("Results/__FQ_batch_summary_MATURE_60x_21d_serpinf2_200301.txt", 21, "Serpinf2"))
+files <- list(c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_7d_col12a1_200228.txt", 7, "col12a1"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_7d_osbpl3_200228.txt", 7, "Osbpl3"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_7d_sdc2_200229.txt", 7, "Sdc2"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_7d_serpinf2_200229.txt", 7, "Serpinf2"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_21d_col12a1_200301.txt", 21, "Col12a1"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_21d_osbpl3_200301.txt", 21, "Osbpl3"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_21d_sdc2_200301.txt", 21, "Sdc2"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_21d_serpinf2_200301.txt", 21, "Serpinf2"))
 
-same_7d_fish <- list(c("Results/__FQ_batch_summary_MATURE_60x_7d_col12a1_200228.txt", 7, "col12a1"),
-             c("Results/__FQ_batch_summary_MATURE_60x_7d_osbpl3_200228.txt", 7, "Osbpl3"),
-             c("Results/__FQ_batch_summary_MATURE_60x_7d_sdc2_200229.txt", 7, "Sdc2"),
-             c("Results/__FQ_batch_summary_MATURE_60x_7d_serpinf2_200229.txt", 7, "Serpinf2"))
+same_7d_fish <- list(c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_7d_col12a1_200228.txt", 7, "col12a1"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_7d_osbpl3_200228.txt", 7, "Osbpl3"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_7d_sdc2_200229.txt", 7, "Sdc2"),
+             c("20.03.08_IEC_FISH/Results/__FQ_batch_summary_MATURE_60x_7d_serpinf2_200229.txt", 7, "Serpinf2"))
 
 x = c(1:8)
 FISH_list <- lapply(x, function(x){tidy_FISHquant_summary(unlist(files[x]))})
@@ -55,43 +55,43 @@ tidy_cell_spots <- function(spottext, start, end, cell) {
     select(cell, Pos_X, Pos_Y, Pos_Z)
 }
 
-spot_files <- list(c("Results/C2bbe1_7d_Col12a1_smiFISH_01_#2_STACK__outline60x_7d_col12a1_spots_200228.txt", "Col12a1", 7, 01),            
-                   c("Results/C2bbe1_7d_Col12a1_smiFISH_02_#2_STACK__outline60x_7d_col12a1_spots_200228.txt", "Col12a1", 7, 02),
-                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_01_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 01),
-                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_02_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 02),
-                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_03_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 03),
-                   c("Results/C2bbe1_7d_Sdc2_smiFISH_01_#2_STACK__outline60x_7d_sdc2_spots_200229.txt", "Sdc2", 7, 01),
-                   c("Results/C2bbe1_7d_Sdc2_smiFISH_02_#2_STACK__outline60x_7d_sdc2_spots_200229.txt", "Sdc2", 7, 02),
-                   c("Results/C2bbe1_7d_SerpinF2_smiFISH_01_#2_STACK__outline60x_7d_serpinf2_spots_200229.txt", "Serpinf2", 7, 01),
-                   c("Results/C2bbe1_7d_SerpinF2_smiFISH_02_#2_STACK__outline60x_7d_serpinf2_spots_200229.txt", "Serpinf2", 7, 02),
-                   c("Results/C2bbe1_21d_Col121a_60X_01_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "Col12a1", 21, 01),
-                   c("Results/C2bbe1_21d_Col121a_60X_02_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "Col12a1", 21, 02),
-                   c("Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "FF_Col12a1", 21, 01),
-                   c("Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "FF_Col12a1", 21, 02),
-                   c("Results/C2bbe1_21d_Osbpl3_flipped_60X_01_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "Osbpl3", 21, 01),
-                   c("Results/C2bbe1_21d_Osbpl3_flipped_60X_02_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "Osbpl3", 21, 02),
-                   c("Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "FF_Osbpl3", 21, 01),
-                   c("Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "FF_Osbpl3", 21, 02),
-                   c("Results/C2bbe1_21d_Sdc2_60X_01_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "Sdc2", 21, 01),
-                   c("Results/C2bbe1_21d_Sdc2_60X_02_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "Sdc2", 21, 02),
-                   c("Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "FF_Sdc2", 21, 01),
-                   c("Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "FF_Sdc2", 21, 02),
-                   c("Results/C2bbe1_21d_SerpinF2_60X_01_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "Serpinf2", 21, 01),
-                   c("Results/C2bbe1_21d_SerpinF2_60X_02_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "Serpinf2", 21, 02),
-                   c("Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "FF_Serpinf2", 21, 01),
-                   c("Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "FF_Serpinf2", 21, 02))
+spot_files <- list(c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Col12a1_smiFISH_01_#2_STACK__outline60x_7d_col12a1_spots_200228.txt", "Col12a1", 7, 01),            
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Col12a1_smiFISH_02_#2_STACK__outline60x_7d_col12a1_spots_200228.txt", "Col12a1", 7, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Osbpl3_smiFISH_01_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Osbpl3_smiFISH_02_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Osbpl3_smiFISH_03_#2_STACK__outline60x_7d_osbpl3_spots_200228.txt", "Osbpl3", 7, 03),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Sdc2_smiFISH_01_#2_STACK__outline60x_7d_sdc2_spots_200229.txt", "Sdc2", 7, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Sdc2_smiFISH_02_#2_STACK__outline60x_7d_sdc2_spots_200229.txt", "Sdc2", 7, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_SerpinF2_smiFISH_01_#2_STACK__outline60x_7d_serpinf2_spots_200229.txt", "Serpinf2", 7, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_SerpinF2_smiFISH_02_#2_STACK__outline60x_7d_serpinf2_spots_200229.txt", "Serpinf2", 7, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_Col121a_60X_01_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "Col12a1", 21, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_Col121a_60X_02_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "Col12a1", 21, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "FF_Col12a1", 21, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline60x_21d_col12a1_spots_200301.txt", "FF_Col12a1", 21, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_Osbpl3_flipped_60X_01_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "Osbpl3", 21, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_Osbpl3_flipped_60X_02_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "Osbpl3", 21, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "FF_Osbpl3", 21, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline_60x_21d_osbpl3_spots_200301.txt", "FF_Osbpl3", 21, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_Sdc2_60X_01_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "Sdc2", 21, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_Sdc2_60X_02_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "Sdc2", 21, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "FF_Sdc2", 21, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline60x_21d_sdc2_spots_200301.txt", "FF_Sdc2", 21, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_SerpinF2_60X_01_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "Serpinf2", 21, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_SerpinF2_60X_02_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "Serpinf2", 21, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_FF_60X_01_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "FF_Serpinf2", 21, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_21d_FF_60X_02_#2_STACK__outline_60x_21d_serpinf2_spots_200301.txt", "FF_Serpinf2", 21, 02))
   
 
 
-same_7d_files <- list(c("Results/C2bbe1_7d_Col12a1_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Col12a1", 7, 01),
-                   c("Results/C2bbe1_7d_Col12a1_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Col12a1", 7, 02),
-                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 01),
-                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 02),
-                   c("Results/C2bbe1_7d_Osbpl3_smiFISH_03_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 03),
-                   c("Results/C2bbe1_7d_Sdc2_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Sdc2", 7, 01),
-                   c("Results/C2bbe1_7d_Sdc2_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Sdc2", 7, 02),
-                   c("Results/C2bbe1_7d_SerpinF2_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Serpinf2", 7, 01),
-                   c("Results/C2bbe1_7d_SerpinF2_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Serpinf2", 7, 02))
+same_7d_files <- list(c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Col12a1_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Col12a1", 7, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Col12a1_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Col12a1", 7, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Osbpl3_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Osbpl3_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Osbpl3_smiFISH_03_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Osbpl3", 7, 03),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Sdc2_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Sdc2", 7, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_Sdc2_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Sdc2", 7, 02),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_SerpinF2_smiFISH_01_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Serpinf2", 7, 01),
+                   c("20.03.08_IEC_FISH/Results/C2bbe1_7d_SerpinF2_smiFISH_02_#2_STACK__outline_60x_7d_all_spots_200229.txt", "Serpinf2", 7, 02))
 
 
 tidy_spot_files <- function(args){ 
@@ -104,7 +104,7 @@ tidy_spot_files <- function(args){
   x <- c(1:nrow(coords))
   cell_spot_list <- lapply(x, function(x){tidy_cell_spots(spottext, coords$start[x], coords$end[x], coords$cell[x])})
   
-  cell_spots <- do.call(rbind, cell_spot_list) %>% mutate(gene = args[2], day = args[3], image = args[4]) %>% select(gene, day, image, cell, Pos_X, Pos_Y, Pos_Z)
+  cell_spots <- do.call(rbind, cell_spot_list) %>% mutate(gene = args[2], day = args[3], image = args[4]) 
 
 }
 
@@ -136,10 +136,10 @@ tidy_SLIM_summary <- function(args) {
 }
 
 
-files <- list(c("Results/SLIM/_FISH-QUANT__threshold_spots__SLIM_200304.txt", 7, "Col12a1"),
-             c("Results/SLIM/_FISH-QUANT__threshold_spots_osbpl3_200304.txt", 7, "Osbpl3"),
-             c("Results/SLIM/_FISH-QUANT__threshold_sdc2_spots_200304.txt", 7, "Sdc2"),
-             c("Results/SLIM/_FISH-QUANT__threshold_spots_SLIM_Serpinf2_200303.txt", 7, "Serpinf2"))
+files <- list(c("20.03.08_IEC_FISH/Results/SLIM/_FISH-QUANT__threshold_spots__SLIM_200304.txt", 7, "Col12a1"),
+             c("20.03.08_IEC_FISH/Results/SLIM/_FISH-QUANT__threshold_spots_osbpl3_200304.txt", 7, "Osbpl3"),
+             c("20.03.08_IEC_FISH/Results/SLIM/_FISH-QUANT__threshold_sdc2_spots_200304.txt", 7, "Sdc2"),
+             c("20.03.08_IEC_FISH/Results/SLIM/_FISH-QUANT__threshold_spots_SLIM_Serpinf2_200303.txt", 7, "Serpinf2"))
 
 
 x = c(1:4)

@@ -1,0 +1,333 @@
+---
+title: "22.03.09_C2bbe1RescueLARP3TOP"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(cowplot)
+library(ggpubr)
+```
+
+## 7 Day differentiated C2bbe1 LARP1 KO G10 cells on dishes with LARP1 rescue constructs
+## Round 1
+
+```{r,}
+spots <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.03.08_LARPRescue3TOP/Results/_FISH-QUANT__all_spots_220308.txt", header = TRUE, sep = "\t", skip = 13))
+
+spots <- spots %>% separate(File, into = c("C2bbe1", "7d", "LARP1KO", "G10", "line", "rescue", "image", "Stack"), sep = "_") %>% mutate(image = substr(image, 1, 2)) %>% select(-C2bbe1, -`7d`, -LARP1KO, -G10, -Stack) 
+
+```
+
+```{r, }
+
+## INT_raw
+spots %>% filter(TH_fit == 1) %>% select(line,INT_raw) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(300,1800) + geom_hline(yintercept = 900)
+
+#INT_filt
+spots %>% filter(TH_fit == 1) %>% select(line,INT_filt) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(100,1800) + geom_hline(yintercept = 550)
+
+#BGD
+spots %>% filter(TH_fit == 1) %>% select(line,BGD) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(250,600) + geom_hline(yintercept = 450)
+
+#Pos_Z
+spots %>% filter(TH_fit == 1) %>% select(line,Pos_Z) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + geom_hline(yintercept = c(1250,10000))
+
+#really limits spots.
+spots_filt <- spots %>% filter(TH_fit == 1, as.numeric(INT_filt) > 700, as.numeric(INT_filt) < 1500, as.numeric(INT_raw) > 900, as.numeric(SigmaZ) < 700, as.numeric(Pos_Z) > 1250, as.numeric(Pos_Z) < 10000)
+
+#as.numeric(INT_filt) > 650
+
+#are all images similar?
+
+spots_filt %>%  filter(line != "Lox") %>% ggplot(aes(x = Cell, y = as.numeric(Pos_Z), color = image)) + geom_boxplot(position = "dodge") + facet_grid(rescue~line) 
+
+spots_filt <- spots_filt %>% filter(!(line == "FF" & rescue == "GFP" & image == "01"),
+                                    !(line == "RPL7" & rescue == "GFP" & image %in% c("01","02")),
+                                    !(line == "RPL7" & rescue == "GFP" & image == "04" & Cell %in% c("Cell_1", "Cell_4")),
+                                    !(line == "RPL7mut" & rescue == "GFP" & image == "04"),
+                                    !(line == "RPS28" & rescue == "GFP" & image %in% c("01","02")),
+                                    !(line == "RPS28mut" & rescue == "GFP" & image %in% c("01", "02", "04")),
+                                    !(line == "RPS28mut" & rescue == "GFP" & image == "03" & Cell == "Cell_2"),
+                                    !(line == "FF" & rescue == "LARP1" & image %in% c("02","03")),
+                                    !(line == "FF" & rescue == "LARP1" & image== "04" & Cell %in% c("Cell_3", "Cell_4")),
+                                    !(line == "RPL7" & rescue == "LARP1" & image %in% c("02","03")),
+                                    !(line == "RPL7mut" & rescue == "LARP1" & image == "02"),
+                                    !(line == "RPS28" & rescue == "LARP1" & image %in% c("01","02")),
+                                    !(line == "RPS28mut" & rescue == "LARP1" & image %in% c("02","04")))
+
+spots_filt %>% filter(line != "Lox") %>% ggplot(aes(x = as.numeric(INT_raw), y = as.numeric(Pos_Z))) + geom_density2d() + facet_grid(rescue~line)
+
+
+```
+
+
+```{r, }
+
+comparisons <- list(c("GFP", "LARP1"))
+
+spots_filt %>% group_by(line, image, rescue, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = rescue, y = num_spots)) + geom_boxplot(aes(fill = line)) + theme_cowplot() + guides(fill = "none", col = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 225, label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text() + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP"))
+
+
+```
+
+```{r, }
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+med_line <- spots_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF",rescue == "LARP1") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+FF_med_lines <- spots_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF") %>% group_by(rescue) %>% summarize(medline = median(Position_In_Z)) 
+
+spots_filt %>% left_join(.,FF_med_lines, by = "rescue") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)-medline) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = Position_In_Z, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(4,4.5,3.5,5,5.5,4.5), label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6.5)) + facet_wrap(.~rescue)
+
+
+comparisons <- list(c("LARP1", "GFP"))
+
+LARP1medline <- spots_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(rescue == "LARP1") %>% group_by(line) %>% summarize(meds = median(Position_In_Z-med_line))
+
+spots_filt %>% left_join(.,FF_med_lines, by = "rescue") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)-medline) %>% filter(line != "Lox") %>% ggplot(aes(x = rescue, y = Position_In_Z)) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(aes(yintercept = meds), data = LARP1medline, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6)) + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP"))
+
+spots_filt %>% left_join(.,FF_med_lines, by = "rescue") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)-medline) %>% filter(line != "Lox") %>% ggplot(aes(x = rescue, y = Position_In_Z)) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6)) + facet_wrap(.~line, nrow = 1) + scale_x_discrete(limits = c("LARP1", "GFP")) + theme(strip.background = element_rect(color = "white", fill = "white"), strip.text.x = element_text(size = 12, color = "Black"), strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+
+
+```
+
+
+## 7 Day differentiated C2bbe1 LARP1 KO G10 cells on dishes with LARP1 rescue constructs
+## Round 2
+
+```{r,}
+spots2 <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.03.16_C2bbe1LARP1Rescue3TOP/Results/_FISH-QUANT__all_spots_220316.txt", header = TRUE, sep = "\t", skip = 13))
+
+spots2 <- spots2 %>% separate(File, into = c("C2bbe1", "7d", "line", "rescue", "image", "Stack"), sep = "_") %>% mutate(image = substr(image, 1, 2)) %>% select(-C2bbe1, -`7d`, -Stack) 
+
+```
+
+```{r, }
+
+## INT_raw
+spots2 %>% filter(TH_fit == 1) %>% select(line,INT_raw) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(300,1800) + geom_hline(yintercept = 900)
+
+#INT_filt
+spots2 %>% filter(TH_fit == 1) %>% select(line,INT_filt) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(100,1800) + geom_hline(yintercept = 400)
+
+#BGD
+spots2 %>% filter(TH_fit == 1) %>% select(line,BGD) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(250,600) + geom_hline(yintercept = 450)
+
+#really limits spots.
+spots_filt2 <- spots2 %>% filter(TH_fit == 1, as.numeric(INT_filt) > 500, as.numeric(INT_filt) < 2000, as.numeric(INT_raw) < 2500, as.numeric(SigmaZ) < 700, as.numeric(Pos_Z) > 1000, as.numeric(Pos_Z) < 10000)
+
+#are all images similar?
+
+spots_filt2 %>%  filter(line != "Lox") %>% ggplot(aes(x = Cell, y = as.numeric(Pos_Z), color = image)) + geom_boxplot(position = "dodge") + facet_grid(rescue~line) 
+
+spots_filt2 <- spots_filt2 %>% filter(!(line == "FF" & rescue == "LARP1" & image %in% c("01","02")),
+                                      !(line == "FF" & rescue == "LARP1" & image == "03" & Cell == "Cell_3"),
+                                    !(line == "RPL7" & rescue == "LARP1" & image == "03"),
+                                    !(line == "RPL7mut" & rescue == "LARP1" & image %in% c("03","04")),
+                                    !(line == "FF" & rescue == "GFP" & image == "01"),
+                                    !(line == "FF" & rescue == "GFP" & image == "02" & Cell %in% c("Cell_1", "Cell_4")),
+                                    !(line == "RPL7" & rescue == "GFP" & image %in% c("01", "02","04")),
+                                    !(line == "RPL7mut" & rescue == "GFP" & image == "03"),
+                                    !(line == "RPL7mut" & rescue == "GFP" & image == "04" & Cell == "Cell_3"))
+
+spots_filt2 %>% filter(line != "Lox") %>% ggplot(aes(x = as.numeric(INT_raw), y = as.numeric(Pos_Z))) + geom_density2d() + facet_grid(rescue~line)
+
+
+```
+
+```{r, }
+
+comparisons <- list(c("GFP", "LARP1"))
+
+spots_filt2 %>% group_by(line, image, rescue, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = rescue, y = num_spots)) + geom_boxplot(aes(fill = line)) + theme_cowplot() + guides(fill = "none", col = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 225, label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text() + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP"))
+
+
+```
+
+```{r, }
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"))
+
+med_line <- spots_filt2 %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF",rescue == "LARP1") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+FF_med_lines <- spots_filt2 %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF") %>% group_by(rescue) %>% summarize(medline = median(Position_In_Z)) 
+
+spots_filt2 %>% left_join(.,FF_med_lines, by = "rescue") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)-medline) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = Position_In_Z, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(4,4.5,3.5,5,5.5,4.5), label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E")) + scale_alpha_manual(values = c(1,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6.5)) + facet_wrap(.~rescue)
+
+
+comparisons <- list(c("LARP1", "GFP"))
+
+LARP1medline <- spots_filt2 %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(rescue == "LARP1") %>% group_by(line) %>% summarize(meds = median(Position_In_Z-med_line))
+
+spots_filt2 %>% left_join(.,FF_med_lines, by = "rescue") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)-medline) %>% filter(line != "Lox") %>% ggplot(aes(x = rescue, y = Position_In_Z)) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(aes(yintercept = meds), data = LARP1medline, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6)) + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP")) + theme(strip.background = element_rect(color = "white", fill = "white"), strip.text.x = element_text(size = 12, color = "Black"), strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+
+
+
+```
+
+# Round1 + Round2
+
+```{r, }
+rbind(spots_filt,spots_filt2) %>% group_by(line, image, rescue, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = rescue, y = num_spots)) + geom_boxplot(aes(fill = line)) + theme_cowplot() + guides(fill = "none", col = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 225, label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text() + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP"))
+
+spots_norm <- spots_filt %>% filter(line != "Lox") %>% mutate(round = 1)
+
+spots_norm2 <- spots_filt2 %>% filter(line != "Lox") %>% mutate(round = 2)
+
+comparisons <- list(c("GFP", "LARP1"))
+
+
+FF_med_lines <- rbind(spots_norm, spots_norm2) %>% filter(line == "FF") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% group_by(rescue,round) %>% summarize(medline = median(Position_In_Z))
+
+LARP1medline <- rbind(spots_norm, spots_norm2) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(rescue == "LARP1") %>% left_join(.,FF_med_lines) %>% group_by(line) %>% summarize(meds = median(Position_In_Z-medline))
+
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+rbind(spots_norm, spots_norm2) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% left_join(.,FF_med_lines, by = c("rescue","round"))  %>% ggplot(aes(x = line, y =  (Position_In_Z-medline))) + geom_violin(aes(fill = line, alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(4,4.5,3.5,5,5.5,4.5), label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6.5)) + facet_wrap(.~rescue)
+
+comparisons <- list(c("LARP1", "GFP"))
+
+rbind(spots_norm, spots_norm2) %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% left_join(.,FF_med_lines, by = c("rescue","round")) %>% ggplot(aes(x = rescue, y = (Position_In_Z-medline))) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(aes(yintercept = meds), data = LARP1medline, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6)) + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP")) + theme(strip.background = element_rect(color = "white", fill = "white"), strip.text.x = element_text(size = 12, color = "Black"), strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+
+
+
+```
+
+## Round 3
+
+
+```{r,}
+spots3 <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.04.12_LARPrescue3TOP/Results/_FISH-QUANT__all_spots_220412.txt", header = TRUE, sep = "\t", skip = 13))
+
+spots28m <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.04.12_LARPrescue3TOP/Results/_FISH-QUANT__all_spots_220413.txt", header = TRUE, sep = "\t", skip = 13))
+
+spots3 <- rbind(spots3,spots28m) %>% separate(File, into = c("C2bbe1", "7d","LARP1KO","G10", "line", "rescue", "image", "Stack"), sep = "_") %>% mutate(image = substr(image, 1, 2)) %>% select(-C2bbe1, -`7d`, -LARP1KO, -G10, -Stack) 
+
+```
+
+```{r, }
+
+## INT_raw
+spots3 %>% filter(TH_fit == 1) %>% select(line,INT_raw) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(300,1800) + geom_hline(yintercept = 1200)
+
+#INT_filt
+spots3 %>% filter(TH_fit == 1) %>% select(line,INT_filt) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(100,1800) + geom_hline(yintercept = 400)
+
+#BGD
+spots3 %>% filter(TH_fit == 1) %>% select(line,BGD) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(250,750) + geom_hline(yintercept = 550)
+
+#really limits spots.
+spots_filt3 <- spots3 %>% filter(TH_fit == 1, as.numeric(INT_filt) > 500, as.numeric(INT_filt) < 2000, as.numeric(INT_raw) > 1200, as.numeric(INT_raw) < 2500, as.numeric(SigmaZ) < 500, as.numeric(Pos_Z) > 1000, as.numeric(Pos_Z) < 10000, as.numeric(BGD) < 600)
+
+#are all images similar?
+
+spots_filt3 %>%  filter(line != "Lox") %>% ggplot(aes(x = Cell, y = as.numeric(Pos_Z), color = image)) + geom_boxplot(position = "dodge") + facet_grid(rescue~line) 
+
+spots_filt3 <- spots_filt3 %>% filter(!(line == "FF" & rescue == "LARP1" & image == "03"),
+                                    !(line == "RPS28" & rescue == "LARP1" & image == "03"),
+                                    !(line == "RPS28" & rescue == "LARP1" & Cell == "Cell_2"),
+                                    !(line == "RPS28mut" & rescue == "LARP1" & image == "01" & Cell == "Cell_1"),
+                                    !(line == "RPS28mut" & rescue == "LARP1" & image == "02" & Cell == "Cell_3"),
+                                    !(line == "RPL7mut" & rescue == "LARP1" & image == "03"),
+                                    !(line == "RPS28mut" & rescue == "LARP1" & image == "03"),
+                                    !(line == "FF" & rescue == "GFP" & image == "01"),
+                                    !(line == "FF" & rescue == "GFP" & image == "02" & Cell == "Cell_3"),
+                                    !(line == "RPS28" & rescue == "GFP" & image %in% c("02","03")),
+                                    !(line == "RPS28mut" & rescue == "GFP" & image %in% c("01","03","05","06","08")),
+                                    !(line == "RPS28mut" & rescue == "GFP" & image == "02" & Cell %in% c("Cell_1","Cell_2", "Cell_3")),
+                                    !(line == "RPS28mut" & rescue == "GFP" & image == "04" & Cell %in% c("Cell_2")),
+                                    !(line == "RPS28mut" & rescue == "GFP" & image == "07" & Cell %in% c("Cell_1","Cell_2","Cell_3")),
+                                    !(line == "RPS28mut" & rescue == "GFP" & image == "09" & Cell %in% c("Cell_1","Cell_2","Cell_4","Cell_5")))
+
+spots_filt3 %>% filter(line != "Lox") %>% ggplot(aes(x = as.numeric(INT_raw), y = as.numeric(Pos_Z))) + geom_density2d() + facet_grid(rescue~line)
+
+
+```
+
+```{r, }
+
+comparisons <- list(c("GFP", "LARP1"))
+
+spots_filt3 %>% group_by(line, image, rescue, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = rescue, y = num_spots)) + geom_boxplot(aes(fill = line)) + theme_cowplot() + guides(fill = "none", col = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 225, label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text() + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP"))
+
+
+```
+
+```{r, }
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+med_line <- spots_filt3 %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF",rescue == "LARP1") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+FF_med_lines <- spots_filt3 %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF") %>% group_by(rescue) %>% summarize(medline = median(Position_In_Z)) 
+
+spots_filt3 %>% left_join(.,FF_med_lines, by = "rescue") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)-medline) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = Position_In_Z, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(4,4.5,3.5,5,5.5,4.5), label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6.5)) + facet_wrap(.~rescue)
+
+
+comparisons <- list(c("LARP1", "GFP"))
+
+LARP1medline <- spots_filt3 %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(rescue == "LARP1") %>% group_by(line) %>% summarize(meds = median(Position_In_Z-med_line))
+
+spots_filt3 %>% left_join(.,FF_med_lines, by = "rescue") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)-medline) %>% filter(line != "Lox") %>% ggplot(aes(x = rescue, y = Position_In_Z)) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(aes(yintercept = meds), data = LARP1medline, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6)) + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP")) + theme(strip.background = element_rect(color = "white", fill = "white"), strip.text.x = element_text(size = 12, color = "Black"), strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+
+
+
+```
+
+# Round 1 + 2 + 3
+
+```{r, }
+bind_rows(spots_filt,spots_filt2, spots_filt3) %>% group_by(line, image, rescue, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = rescue, y = num_spots)) + geom_boxplot(aes(fill = line)) + theme_cowplot() + guides(fill = "none", col = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 225, label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text() + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP"))
+
+
+spots_norm3 <- spots_filt3 %>% filter(line != "Lox") %>% mutate(round = 3)
+
+comparisons <- list(c("GFP", "LARP1"))
+
+all_spots <- bind_rows(spots_norm, spots_norm2, spots_norm3)
+
+
+FF_med_lines <- all_spots %>% filter(line == "FF") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% group_by(rescue,round) %>% summarize(medline = median(Position_In_Z))
+
+LARP1medline <- all_spots %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(rescue == "LARP1") %>% left_join(.,FF_med_lines) %>% group_by(line) %>% summarize(meds = median(Position_In_Z-medline))
+
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+all_spots%>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% left_join(.,FF_med_lines, by = c("rescue","round"))  %>% ggplot(aes(x = line, y =  (Position_In_Z-medline))) + geom_violin(aes(fill = line, alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(4,4.5,3.5,5,5.5,4.5), label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6.5)) + facet_wrap(.~rescue)
+
+comparisons <- list(c("LARP1", "GFP"))
+
+all_spots %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% left_join(.,FF_med_lines, by = c("rescue","round")) %>% ggplot(aes(x = rescue, y = (Position_In_Z-medline))) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(aes(yintercept = meds), data = LARP1medline, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6)) + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP")) + theme(strip.background = element_rect(color = "white", fill = "white"), strip.text.x = element_text(size = 12, color = "Black"), strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+
+
+
+```
+
+```{r, }
+best_spots <- rbind(spots_norm, spots_norm2) %>% filter(!(line == "RPS28mut" & rescue == "GFP"), !(line == "RPS28mut" & rescue == "LARP1")) %>% rbind(filter(spots_norm3, line == "RPS28mut"))
+
+
+FF_med_lines <- best_spots %>% rbind(filter(spots_norm3, line == "FF")) %>% filter(line == "FF") %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% group_by(rescue,round) %>% summarize(medline = median(Position_In_Z))
+
+LARP1medline <- best_spots %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(rescue == "LARP1") %>% left_join(.,FF_med_lines, by = c("rescue","round")) %>% group_by(line) %>% summarize(meds = median(Position_In_Z-medline))
+
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+best_spots %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% left_join(.,FF_med_lines, by = c("rescue","round"))  %>% ggplot(aes(x = line, y =  (Position_In_Z-medline))) + geom_violin(aes(fill = line, alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(4,4.5,3.5,5,5.5,4.5), label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-4,6.5)) + facet_wrap(.~rescue)
+
+comparisons <- list(c("LARP1", "GFP"))
+
+best_spots %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% left_join(.,FF_med_lines, by = c("rescue","round")) %>% ggplot(aes(x = rescue, y = (Position_In_Z-medline))) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(aes(yintercept = meds), data = LARP1medline, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E", "#D0512E", "#6e508d","#6e508d")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-3.5,5.5)) + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP")) + theme(strip.background = element_rect(color = "white", fill = "white"), strip.text.x = element_text(size = 12, color = "Black"), strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+
+best_spots %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% left_join(.,FF_med_lines, by = c("rescue","round")) %>% filter(line %in% c("RPL7", "RPS28")) %>% ggplot(aes(x = rescue, y = (Position_In_Z-medline))) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(aes(yintercept = meds), data = filter(LARP1medline,line %in% c("RPL7", "RPS28")), size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#D0512E", "#6e508d")) + scale_alpha_manual(values = c(1,1,1)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-2.5,5)) + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP")) + theme(strip.background = element_rect(color = "white", fill = "white"), strip.text.x = element_text(size = 12, color = "Black"), strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+
+best_spots %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% left_join(.,FF_med_lines, by = c("rescue","round")) %>% filter(line %in% c("FF","RPL7mut", "RPS28mut")) %>% ggplot(aes(x = rescue, y = (Position_In_Z-medline))) + geom_violin(aes(fill = line,alpha = line)) + geom_boxplot(aes(fill = line, alpha = line), width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = 4, label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(aes(yintercept = meds), data = filter(LARP1medline,line %in% c("FF","RPL7mut","RPS28mut")), size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#D0512E","#6e508d")) + scale_alpha_manual(values = c(1,0.5,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-3.5,5)) + facet_wrap(.~line) + scale_x_discrete(limits = c("LARP1", "GFP")) + theme(strip.background = element_rect(color = "white", fill = "white"), strip.text.x = element_text(size = 12, color = "Black"), strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
+```
+
+

@@ -256,8 +256,41 @@ spots_FF_filt %>% filter(gene %in% c("FF", "RPL7", "RPL7mut")) %>% mutate(state 
 spots_FF_filt %>% filter(gene %in% c("FF", "RPS28", "RPS28mut")) %>% mutate(state = ifelse(day == "S8", "Fasting", ifelse(day == "S8RF2", "Refed", "")), gene = ifelse(gene == "FF", "Firefly", gene)) %>%  mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 9000)/1000) %>% ggplot(aes(x = state, y = Position_In_Z, group = state, fill = gene, alpha = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot()  + labs(x ="", y = "Position in Z (um)") + guides(fill = FALSE, alpha = FALSE) + scale_fill_manual(values = c("#808080", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.25)) + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-0.1,5.5)) + facet_grid(.~gene) + stat_compare_means(comparisons = list(c("Fasting", "Refed")), method = "wilcox.test", label.y = c(5,5,5), size = 6, alpha = c(1,1,1), inherit.aes = FALSE) + theme(text = element_text(size=25), axis.text = element_text(size = 15)) + theme(strip.background = element_rect(color = "white", fill = "white"))
 
 ```
+```{r, }
+spots_FF %>% filter(as.numeric(INT_raw) > 900, as.numeric(INT_raw) < 1200, as.numeric(BGD) < 610, as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 650, as.numeric(Pos_Z) > 4000, as.numeric(Pos_Z) < 12000) %>% ggplot(aes(x = as.numeric(INT_raw), y = -(as.numeric(Pos_Z)))) + geom_density2d() + facet_grid(gene~day)
 
-```{r,  3d try}
+
+spots_FF %>% filter(as.numeric(INT_raw) > 900, as.numeric(INT_raw) < 1200, as.numeric(BGD) < 610, as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 650, as.numeric(Pos_Z) > 4000, as.numeric(Pos_Z) < 12000) %>% group_by(gene,day, image, cell) %>% summarise(num_spots = n()) %>% unite(col = "sample",gene,day,sep = "_") %>% ggplot(aes(x = sample, y = num_spots, fill = sample)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text(y.pos = -1)
+
+
+spots_FF %>% filter(as.numeric(INT_raw) > 900, as.numeric(INT_raw) < 1200, as.numeric(BGD) < 610, as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 650, as.numeric(Pos_Z) > 4000, as.numeric(Pos_Z) < 12000) %>% filter(gene != "Lox") %>% mutate(state = ifelse(day == "S8", "Fasting", ifelse(day == "S8RF2", "Refed", "")), gene = ifelse(gene == "FF", "Firefly", gene)) %>%  mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 9000)/1000) %>% ggplot(aes(x = state, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25, outlier.shape = NA) + theme_cowplot()  + labs(x ="", y = "Position in Z (um)") + guides(fill = FALSE, alpha = FALSE) + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-0.1,5.5)) + facet_grid(.~gene) + stat_compare_means(comparisons = list(c("Fasting", "Refed")), method = "wilcox.test", label.y = 4, size = 7, label = "p.signif", vjust = 0.5, hide.ns = TRUE, inherit.aes = FALSE) + theme(text = element_text(size=15), axis.text = element_text(size = 10)) + theme(strip.background = element_rect(color = "white", fill = "white"))
+
+spots_FF %>% filter(as.numeric(INT_raw) > 900, as.numeric(INT_raw) < 1200, as.numeric(BGD) < 610, as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 650, as.numeric(Pos_Z) > 4000, as.numeric(Pos_Z) < 12000) %>% filter(gene != "Lox") %>% mutate(state = ifelse(day == "S8", "Fasting", ifelse(day == "S8RF2", "Refed", "")), gene = ifelse(gene == "FF", "Firefly", gene)) %>%  mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 9000)/1000) %>% ggplot(aes(x = state, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25, outlier.shape = NA) + theme_cowplot()  + labs(x ="", y = "Position in Z (um)") + guides(fill = FALSE, alpha = FALSE) + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-0.1,5.5)) + facet_grid(.~gene) + stat_compare_means(comparisons = list(c("Fasting", "Refed")), method = "wilcox.test", label.y = 4, size = 7, label = "p.signif", vjust = 0.5, hide.ns = TRUE, inherit.aes = FALSE) + theme(text = element_text(size=15), axis.text = element_text(size = 10)) + theme(strip.background = element_rect(color = "white", fill = "white"))
+
+```
+
+
+# now with normal 5'TOP data
+
+```{r, }
+top5dat <- as_tibble(read.table("C2bbe15TOPspotdata.txt")) %>% mutate(image = paste0("0", image), day = "Normal") %>% select(gene,day,image,cell,Position_In_Z) 
+
+FF5med <- top5dat %>% filter(gene == "FF") %>% pull(Position_In_Z) %>% median()
+norm5 <- top5dat %>% mutate(normPos = Position_In_Z - FF5med) 
+
+starve_med <- spots_FF %>% filter(as.numeric(INT_raw) > 900, as.numeric(INT_raw) < 1200, as.numeric(BGD) < 610, as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 650, as.numeric(Pos_Z) > 4000, as.numeric(Pos_Z) < 10000) %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 9000)/1000) %>% filter(gene == "FF") %>% group_by(day) %>% summarise(meds = median(Position_In_Z)) %>% pull(meds) %>% mean()
+
+norm_starve <- spots_FF %>% filter(as.numeric(INT_raw) > 900, as.numeric(INT_raw) < 1200, as.numeric(BGD) < 610, as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 650, as.numeric(Pos_Z) > 4000, as.numeric(Pos_Z) < 10000) %>% mutate(day = ifelse(day == "S8", "Fasting", ifelse(day == "S8RF2", "Refed", ""))) %>%  mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 9000)/1000, normPos = Position_In_Z - starve_med) %>% select(gene,day,image,cell,Position_In_Z, normPos)
+
+rbind(norm5,norm_starve) %>% filter(gene != "Lox") %>% ggplot(aes(x = day, y = normPos)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25, outlier.shape = NA) + theme_cowplot()  + labs(x ="", y = "Position in Z (um)\nFirefly Normalized") + guides(fill = "none", alpha = "none") + scale_fill_manual(values = c("#808080", "#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + geom_hline(yintercept = 0, size = 1, linetype = "dashed") + coord_cartesian(ylim = c(-4.5,6)) + facet_grid(.~gene) + stat_compare_means(comparisons = list(c("Normal", "Fasting"),c("Fasting", "Refed"), c("Normal", "Refed")), method = "wilcox.test", label.y = c(4.5,5,5.5), size = 7, label = "p.signif", hide.ns = TRUE, vjust = 0.5) + theme(text = element_text(size=25), axis.text = element_text(size = 15)) + theme(strip.background = element_rect(color = "white", fill = "white")) + scale_x_discrete(limits = c("Normal", "Fasting", "Refed"))
+
+## Less is more
+
+rbind(norm5,norm_starve) %>% filter(gene != "Lox", gene != "RPL7", gene != "RPL7mut", day != "Normal") %>% ggplot(aes(x = day, y = normPos)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25, outlier.shape = NA) + theme_cowplot()  + labs(x ="", y = "Position in Z (um)\nFirefly Normalized") + guides(fill = "none", alpha = "none") + scale_fill_manual(values = c("#808080", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + geom_hline(yintercept = 0, size = 1, linetype = "dashed") + coord_cartesian(ylim = c(-3,3.5)) + facet_grid(.~gene) + stat_compare_means(comparisons = list(c("Fasting", "Refed")), method = "wilcox.test", label.y = 3, size = 7, label = "p.signif", hide.ns = TRUE, vjust = 0.5) + theme(text = element_text(size=15), axis.text = element_text(size = 10)) + theme(strip.background = element_rect(color = "white", fill = "white")) + scale_x_discrete(limits = c("Fasting", "Refed"))
+
+```
+
+```{r,  3d try, eval = FALSE}
 library(ggrgl)
 
 ptry <- spots_FF_filt %>% filter(gene != "Lox", cell == 1, image == "01", day == "S8RF2", gene == "RPS28") %>% unite(col = "sample",gene,day,sep = "_") %>% filter(grepl(sample, pattern = "FF") | grepl(sample, pattern = "RPS28")) %>% ggplot(aes(x = as.numeric(Pos_X), y = as.numeric(Pos_Y), z = as.numeric(Pos_Z), col = sample, alpha = sample)) + geom_point_z(extrude = FALSE) + scale_alpha_manual(values = c(1)) + theme_ggrgl()

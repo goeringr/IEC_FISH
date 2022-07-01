@@ -1,0 +1,187 @@
+---
+title: "MDCK and HCA7 TOPs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(cowplot)
+library(ggpubr)
+
+```
+
+## 7 Day differentiated MDCK cells on dishes
+
+```{r,  read in spots}
+spots <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/21.11.30_MDCKTOP/Results/_FISH-QUANT__all_spots_211130.txt", header = TRUE, sep = "\t", skip = 13))
+
+spots <- spots %>% separate(File, into = c("MDCK", "7d", "line", "image", "Stack"), sep = "_") %>% mutate(image = substr(image, 1, 2)) %>% select(-MDCK, -`7d`, -Stack)
+
+```
+
+```{r, thresholdmyself}
+
+## INT_raw
+spots %>% filter(TH_fit == 1) %>% select(line,INT_raw) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(300,1500) + geom_hline(yintercept = 650)
+
+#BGD
+spots %>% filter(TH_fit == 1) %>% select(line,BGD) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(100,500) + geom_hline(yintercept = 500)
+
+#really limits spots.
+spots_filt <- spots %>% filter(TH_fit == 1, as.numeric(INT_raw) > 650, as.numeric(INT_raw) < 2000)
+
+#are all images similar?
+
+spots_filt %>%  filter(line != "Lox") %>% ggplot(aes(x = Cell, y = as.numeric(Pos_Z), color = image)) + geom_boxplot(position = "dodge") + facet_wrap(.~line) 
+
+spots_filt <- spots_filt %>% filter(!(line == "FF" & image == "01"), !(line == "RPL7" & image == "03"), !(line == "RPL7mut" & image == "01"))
+
+
+```
+
+
+```{r, spot_analysis}
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+spots_filt %>% group_by(line, image, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = line, y = num_spots, fill = line)) + geom_boxplot() + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text()
+
+spots_filt %>% ggplot(aes(x = line, y = as.numeric(Pos_Z), fill = line)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x ="", y = "Raw FISH-quant -Pos_Z")
+
+# FF image1, RPL7 image3
+
+med_line <- spots_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+spots_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = Position_In_Z, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(5,5.5,4.5,6,6.5,4.5)) + geom_hline(yintercept = med_line, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)", title = "MDCK 7d Dish Differentiated") + coord_cartesian(ylim = c(0,7.5))
+
+spots_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = Position_In_Z-med_line, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test",label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5, label.y = c(3,3.5,2.5,4,4.5,2.5)) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized", title = "MDCK 7d Dish Differentiated") + coord_cartesian(ylim = c(-2,5.5)) + scale_x_discrete(labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut"))
+
+```
+
+
+## 7 Day differentiated MDCK cells on membranes
+
+```{r,  read in spots2}
+spots_mem <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/21.11.30_MDCKTOP/Results/_FISH-QUANT__all_spots_211201.txt", header = TRUE, sep = "\t", skip = 13))
+
+spots_mem <- spots_mem %>% separate(File, into = c("MDCK", "7d", "line", "image", "Stack"), sep = "_") %>% mutate(image = substr(image, 1, 2)) %>% select(-MDCK, -`7d`, -Stack)
+
+```
+
+```{r, thresholdmyself2}
+
+## INT_raw
+spots_mem %>% filter(TH_fit == 1) %>% select(line,INT_raw) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(800,2500) + geom_hline(yintercept = 1300)
+
+#BGD
+spots_mem %>% filter(TH_fit == 1) %>% select(line,BGD) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() 
+
+#really limits spots.
+spots_mem_filt <- spots_mem %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1300, as.numeric(INT_raw) < 2000)
+
+#are all images similar?
+
+spots_mem_filt %>%  filter(line != "Lox") %>% ggplot(aes(x = Cell, y = ((-(as.numeric(Pos_Z))+8000) / 1000), color = image)) + geom_boxplot(position = "dodge") + facet_wrap(.~line) + ylim(-1,5)
+
+spots_mem_filt <- spots_mem_filt %>% filter(#!(line == "FF" & image == "02"), 
+                                            !(line == "RPL7" & image == "01"), 
+                                            !(line == "RPS28" & image == "01"))#,
+                                            #!(line == "RPL7mut" & image == "01"))
+
+```
+
+
+```{r, spot_analysis2}
+
+spots_mem_filt %>% group_by(line, image, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = line, y = num_spots, fill = line)) + geom_boxplot() + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text()
+
+spots_mem_filt %>% ggplot(aes(x = line, y = -(as.numeric(Pos_Z)), fill = line)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x ="", y = "Raw FISH-quant -Pos_Z")
+
+med_line <- spots_mem_filt %>% mutate(Position_In_Z = ((-(as.numeric(Pos_Z))+8000) / 1000)) %>% filter(line == "FF") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+spots_mem_filt %>% mutate(Position_In_Z = ((-(as.numeric(Pos_Z))+8000) / 1000)) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = Position_In_Z, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(5,5.5,4.5,6,6.5,4.5)) + geom_hline(yintercept = med_line, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)", title = "MDCK 7d Membrane Differentiated") + coord_cartesian(ylim = c(0,8)) 
+
+```
+
+## 7 Day differentiated HCA7 cells on dishes
+
+```{r,}
+Hspots <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/21.12.09_HCA7TOP/Results/_FISH-QUANT__all_spots_211210.txt", header = TRUE, sep = "\t", skip = 13))
+
+Hspots <- Hspots %>% separate(File, into = c("HCA7", "7d", "line", "image", "Stack"), sep = "_") %>% mutate(image = substr(image, 1, 2)) %>% select(-HCA7, -`7d`, -Stack)
+
+```
+
+```{r, }
+
+## INT_raw
+Hspots %>% filter(TH_fit == 1) %>% select(line,INT_raw) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(500,2500) + geom_hline(yintercept = 1500)
+
+#BGD
+Hspots %>% filter(TH_fit == 1) %>% select(line,BGD) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(300,1200) + geom_hline(yintercept = 500)
+
+#SigmaX
+Hspots %>% filter(TH_fit == 1) %>% select(line,SigmaX) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() 
+
+#SigmaZ
+Hspots %>% filter(TH_fit == 1) %>% select(line,SigmaZ) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot()  + geom_hline(yintercept = 750)
+
+#really limits spots.
+Hspots_filt <- Hspots %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1700, as.numeric(SigmaZ) < 750)#, as.numeric(INT_raw) < 3500)
+
+#are all images similar?
+
+Hspots_filt %>%  filter(line != "Lox") %>% ggplot(aes(x = Cell, y = as.numeric(Pos_Z), color = image)) + geom_boxplot(position = "dodge") + facet_wrap(.~line) 
+
+Hspots_filt <- Hspots_filt %>% filter(!(line == "RPL7mut" & image == "03"), !(line == "RPS28mut" & image == "03"), !(line == "RPS28" & image == "01"), !(line == "FF" & image == "02"))#, !(line == "FF" & Cell %in% c("Cell_6", "Cell_7")))
+
+
+```
+
+
+```{r, }
+
+comparisons <- list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+Hspots_filt %>% group_by(line, image, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = line, y = num_spots, fill = line)) + geom_boxplot() + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text()
+
+Hspots_filt %>% ggplot(aes(x = line, y = as.numeric(Pos_Z), fill = line)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, col = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + labs(x ="", y = "Raw FISH-quant -Pos_Z")
+
+# FF image1, RPL7 image3
+
+med_line <- Hspots_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(line == "FF") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+Hspots_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-3000) / 1000)) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = Position_In_Z, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(5,5.5,4.5,6,6.5,4.5)) + geom_hline(yintercept = med_line, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)", title = "HCA7 7d Dish Differentiated") + coord_cartesian(ylim = c(0,7.5))
+
+
+```
+
+```{r, norm}
+lowZ <- Hspots_filt %>% group_by(line) %>% summarise(med = median(as.numeric(Pos_Z)), tenth = quantile(as.numeric(Pos_Z), 0.05))
+
+med_line <- Hspots_filt %>% left_join(., lowZ) %>% mutate(norm_Z = (as.numeric(Pos_Z)-tenth+500)/1000) %>% filter(line == "FF") %>% summarize(median(norm_Z)) %>% as.numeric()
+
+Hspots_filt %>% left_join(., lowZ) %>% mutate(norm_Z = (as.numeric(Pos_Z)-tenth+500)/1000) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = norm_Z, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.2, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(5,5.5,4.5,6,6.5,4.5), label = "p.signif", hide.ns = TRUE, size = 8) + geom_hline(yintercept = med_line, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)", title = "HCA7 7d Dish Differentiated") + coord_cartesian(ylim = c(0,7))
+
+Hspots_filt %>% left_join(., lowZ) %>% mutate(norm_Z = (as.numeric(Pos_Z)-tenth+500)/1000) %>% filter(line != "Lox") %>% ggplot(aes(x = line, y = norm_Z-med_line, fill = line)) + geom_violin(aes(alpha = line)) + geom_boxplot(aes(alpha = line), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE, alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test",label = "p.signif", size = 7, hide.ns = TRUE, vjust = 0.5, label.y = c(4,4.5,3.5,5,5.5,3.5)) + geom_hline(yintercept = 0, size = 1, linetype = "dashed")  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized", title = "HCA7 7d Dish Differentiated") + coord_cartesian(ylim = c(-2,6)) + scale_x_discrete(labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut"))
+
+
+Hspots_filt %>% left_join(., lowZ) %>% mutate(norm_Z = (as.numeric(Pos_Z)-tenth+500)/1000) %>% filter(line != "Lox") %>% ggplot(aes(x = as.numeric(INT_raw), y = norm_Z)) + geom_density2d() + facet_wrap(.~line)
+
+Hspots_filt %>% left_join(., lowZ) %>% mutate(norm_Z = (as.numeric(Pos_Z)-tenth+500)/1000) %>% filter(line != "Lox") %>% ggplot(aes(x = Cell, y = norm_Z, color = image)) + geom_boxplot(position = "dodge") + facet_wrap(.~line) 
+
+
+```
+
+
+```{r, }
+#spots_filt %>% filter(line != "Lox") %>% ggplot(aes(x = as.numeric(INT_raw), y = as.numeric(Pos_Z))) + geom_density2d() + facet_wrap(.~line)
+
+#spots_mem_filt %>% filter(line != "Lox") %>% ggplot(aes(x = as.numeric(INT_raw), y = -(as.numeric(Pos_Z)))) + geom_density2d() + facet_wrap(.~line)
+
+```
+
+
+
+

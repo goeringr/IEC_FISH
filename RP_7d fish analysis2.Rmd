@@ -522,7 +522,7 @@ rel_dat28 %>% ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene)) +
 ```{r, altogether now}
 
 rbind(select(CAD, -AREA_cell, -N_total), CAD28_filt %>% group_by(gene,image,cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell, N_thres_Total)) %>%  filter(gene != "8") %>% 
-    ggplot(aes(x = gene, y = N_thres_Total, fill = gene, alpha = gene))  + geom_boxplot(width = 0.75, outlier.shape = NA, legend = FALSE) + theme_cowplot()  + labs(x = "", y = "Total Number of\nReporter Transcripts") + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) +  scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + guides(fill = FALSE, alpha = FALSE) + EnvStats::stat_n_text(y.pos = -7,size = 4) + facet_wrap(.~cell, nrow =1, scales = "free") +
+    ggplot(aes(x = gene, y = N_thres_Total, fill = gene, alpha = gene))  + geom_boxplot(width = 0.25, outlier.shape = NA, legend = FALSE) + theme_cowplot()  + labs(x = "", y = "Total Number of Spots") + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) +  scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + guides(fill = FALSE, alpha = FALSE) + EnvStats::stat_n_text(y.pos = -7) + facet_wrap(.~cell, nrow =2, scales = "free") +
   theme(strip.background = element_rect(color = "white", fill = "white"),
         strip.text.x = element_text(size = 12, color = "Black", face = "bold"),
         strip.text.y = element_text(size = 12, color = "Black", face = "bold"))

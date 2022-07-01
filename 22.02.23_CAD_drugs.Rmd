@@ -1,0 +1,279 @@
+---
+title: "CAD_drugs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+## CAD Cells were dox induced for 48hrs then differentiated in -FBS media for 48 hours (with Dox)
+## Cells were then treated with various combinations of kinesin and dynene inhibitors for 2 hours
+
+
+```{r,}
+all_spot_cad <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.02.21_CAD_Drugs/Results/_FISH-QUANT__all_spots_220221.txt", header = TRUE, skip = 13, sep = "\t"))
+
+
+all_spot_cad <- all_spot_cad %>% separate(File, into = c("CAD", "gene", "drug", "image", "stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), cell = ifelse(cell %% 2 == 0, "neurite", "soma"), image = substr(image,1,2)) %>% select(gene,drug, image, cell, everything(), -stack) 
+
+```
+
+```{r, }
+
+##a closer look with each condition.
+all_spot_cad %>% filter(TH_fit == 1) %>% select(gene,drug,cell,INT_raw) %>% gather(-gene,-drug,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(750,2500) + facet_grid(.~cell) + geom_hline(yintercept = 1600)
+
+all_spot_cad %>% filter(TH_fit == 1) %>% select(gene,cell,BGD) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(500,1200) + facet_grid(.~cell) + geom_hline(yintercept = 700)
+
+all_spot_cad %>% filter(TH_fit == 1)  %>% select(gene,cell,Pos_Z) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + facet_grid(.~cell) + geom_hline(yintercept = 900) + geom_hline(yintercept = 9000)
+
+all_spot_cad %>% filter(TH_fit == 1)  %>% select(gene,cell,SigmaX) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + facet_grid(.~cell) + geom_hline(yintercept = 450)
+
+all_spot_cad %>% filter(TH_fit == 1)  %>% select(gene,cell,SigmaZ) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + facet_grid(.~cell) + geom_hline(yintercept = 750)
+
+
+#really limits spots.
+CAD_filt <- all_spot_cad %>% filter(as.numeric(SigmaZ) < 750,  as.numeric(INT_raw) > 1600, as.numeric(INT_raw) < 3000, as.numeric(Pos_Z) > 1400, as.numeric(Pos_Z) < 9000)
+
+```
+
+```{r, }
+
+CAD_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = drug, y = numspots, fill = gene)) + geom_boxplot() + theme_cowplot() + facet_grid(cell~gene, scales = "free_y")
+
+comps <- list(c("DMSO", "K"), c("DMSO", "KD"), c("DMSO", "M"), c("DMSO", "MD"), c("DMSO", "KM"), c("DMSO", "KMD"), c("K", "KD"), c("M", "MD"), c("KM", "KMD"))
+
+CAD_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n()) %>% filter(cell == "neurite") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K", "KD", "M", "MD", "KM", "KMD")), y = numspots)) + geom_boxplot(aes(fill = gene), outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE, vjust = 0.5) + labs(x = "", y = "Spots in Neurite") + guides(fill = "none")  + facet_grid(gene~.)  + EnvStats::stat_n_text(y.pos = 0)
+
+CADfilt_summary <- CAD_filt %>% group_by(gene,drug,image,cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, drug, image, cell, N_thres_Total) %>% 
+  group_by(gene,drug,image) %>% 
+  spread(key = cell, value = N_thres_Total) %>%
+  mutate(n_s_thresh = neurite/soma) %>% 
+  select(gene, image, n_s_thresh) %>% 
+  ungroup() %>% left_join(., CAD_filt %>% group_by(gene,drug,image,cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, drug, image, cell, N_thres_Total)) 
+
+CADfilt_summary %>% select(-N_thres_Total) %>% unique() %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K", "KD", "M", "MD", "KM", "KMD")), y = n_s_thresh))  + geom_boxplot(aes(fill = gene),outlier.shape = NA) + geom_point(alpha = 0.25, position = "jitter") + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5) + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = "none") + scale_fill_manual(values = c("#808080", "#95e7d9")) + facet_grid(gene~.) + EnvStats::stat_n_text(y.pos = -0.05)
+
+CADfilt_summary %>% select(-N_thres_Total) %>% unique() %>% ggplot(aes(x = gene, y = n_s_thresh))  + geom_boxplot(aes(fill = gene),outlier.shape = NA) + geom_point(alpha = 0.25, position = "jitter") + theme_cowplot() + stat_compare_means(comparisons = list(c("FF","Net1")), method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5) + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = "none") + scale_fill_manual(values = c("#808080", "#95e7d9")) + facet_grid(.~factor(drug,levels = c("DMSO", "D", "K", "KD", "M", "MD", "KM", "KMD"))) + EnvStats::stat_n_text(y.pos = -0.05)
+
+
+```
+
+
+## CAD Cells were dox induced for 48hrs then differentiated in -FBS media for 48 hours (with Dox)
+## Cells were then treated with various combinations of kinesin and dynene inhibitors for 4 hours
+
+
+```{r,}
+all_spot_cad <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.02.24_CAD_4hr_Drugs/Results/_FISH-QUANT__all_spots_220225.txt", header = TRUE, skip = 13, sep = "\t"))
+
+all_spot_cad2 <- as_tibble(read.csv("//Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.02.24_CAD_4hr_Drugs/Results/_FISH-QUANT__all_spots_220228.txt", header = TRUE, skip = 13, sep = "\t"))
+
+all_spot_cad <- rbind(all_spot_cad, all_spot_cad2) %>% separate(File, into = c("CAD", "gene", "drug", "image", "stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), cell = ifelse(cell %% 2 == 0, "neurite", "soma"), image = substr(image,1,2)) %>% select(gene,drug, image, cell, everything(), -stack) 
+
+```
+
+```{r, }
+
+##a closer look with each condition.
+all_spot_cad %>% filter(TH_fit == 1) %>% select(gene,drug,cell,INT_raw) %>% gather(-gene,-drug,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(0,5000) + facet_grid(.~cell) + geom_hline(yintercept = 800)
+
+all_spot_cad %>% filter(TH_fit == 1) %>% select(gene,cell,BGD) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + facet_grid(.~cell) 
+
+all_spot_cad %>% filter(TH_fit == 1)  %>% select(gene,cell,Pos_Z) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + facet_grid(.~cell) + geom_hline(yintercept = 500) + geom_hline(yintercept = 9000)
+
+all_spot_cad %>% filter(TH_fit == 1)  %>% select(gene,cell,SigmaX) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + facet_grid(.~cell) + geom_hline(yintercept = 450)
+
+all_spot_cad %>% filter(TH_fit == 1)  %>% select(gene,cell,SigmaZ) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + facet_grid(.~cell) + geom_hline(yintercept = 550)
+
+
+#really limits spots.
+CAD_filt <- all_spot_cad %>% filter(as.numeric(SigmaZ) < 550, as.numeric(INT_raw) > 1500, as.numeric(Pos_Z) > 500, as.numeric(Pos_Z) < 9000, as.numeric(BGD) < 400)
+
+#CAD_filt <- CAD_filt %>% filter(!(line == "FF" & image == "01"), !(line == "RPL7" & image == "03"), !(line == "RPL7mut" & image == "01"))
+
+#CAD_filt %>% filter(gene == "Net1") %>% ggplot(aes(x = as.numeric(INT_raw), y = as.numeric(Pos_Z))) + geom_density2d() + facet_grid(drug~cell)
+```
+
+```{r, }
+
+CAD_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = drug, y = numspots, fill = gene)) + geom_boxplot() + theme_cowplot() + facet_grid(cell~gene, scales = "free_y") + guides(fill = "none")
+
+#not all comparisons
+comps <- list(c("DMSO", "D"), c("DMSO", "K"), c("DMSO", "KD"), c("K", "KD"))
+
+CAD_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n()) %>% filter(cell == "neurite") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K", "KD", "M", "MD", "KM", "KMD")), y = numspots)) + geom_boxplot(aes(fill = gene), outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE, vjust = 0.5) + labs(x = "", y = "Spots in Neurite") + guides(fill = "none")  + facet_grid(gene~.)  + EnvStats::stat_n_text(y.pos = 0)
+
+comps <- list(c("DMSO", "D"), c("DMSO", "K"), c("DMSO", "KD"), c("DMSO", "M"), c("DMSO", "MD"), c("K", "KD"), c("M", "MD"))
+
+CAD_filt %>% filter(gene == "Net1") %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n()) %>% filter(cell == "neurite") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K", "KD", "M", "MD", "KM", "KMD")), y = numspots)) + geom_boxplot(aes(fill = gene), outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE, vjust = 0.5) + labs(x = "", y = "Spots in Neurite") + guides(fill = "none")  + facet_grid(gene~.)  + EnvStats::stat_n_text(y.pos = 0)
+
+
+CADfilt_summary <- CAD_filt %>% group_by(gene,drug,image,cell,Cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, drug, image, cell,Cell, N_thres_Total) %>% 
+  group_by(gene,drug,image,Cell) %>% 
+  mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>% 
+  spread(key = cell, value = N_thres_Total) %>%
+  mutate(neurite = ifelse(is.na(neurite), 0, neurite)) %>% 
+  mutate(n_s_thresh = neurite/soma) %>% 
+  select(gene, image, n_s_thresh) %>% 
+  ungroup() %>% left_join(., CAD_filt %>% group_by(gene,drug,image,cell,Cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, drug, image, cell, N_thres_Total)) 
+
+#not all comparisons
+comps <- list(c("DMSO", "D"),c("DMSO", "K"), c("DMSO", "KD"), c("K", "KD"))
+
+CADfilt_summary %>% select(-N_thres_Total) %>% unique() %>% filter(cell == "soma") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K", "KD", "M", "MD", "KM", "KMD")), y = n_s_thresh))  + geom_boxplot(aes(fill = gene),outlier.shape = NA) + geom_point(alpha = 0.25, position = "jitter") + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5) + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = "none") + scale_fill_manual(values = c("#808080", "#95e7d9")) + facet_grid(gene~.) + EnvStats::stat_n_text(y.pos = -0.05)
+
+comps <- list(c("DMSO", "D"), c("DMSO", "K"), c("DMSO", "KD"), c("DMSO", "M"), c("DMSO", "MD"), c("K", "KD"), c("M", "MD"))
+
+CADfilt_summary %>% filter(gene =="Net1") %>% filter(cell == "soma") %>%  select(-N_thres_Total) %>% unique() %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K", "KD", "M", "MD", "KM", "KMD")), y = n_s_thresh))  + geom_boxplot(aes(fill = gene),outlier.shape = NA) + geom_point(alpha = 0.25, position = "jitter") + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5) + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = "none") + scale_fill_manual(values = c("#95e7d9")) + facet_grid(gene~.) + EnvStats::stat_n_text(y.pos = -0.05)
+
+```
+
+
+```{r, }
+KinesoreDat <- CADfilt_summary %>% filter(drug !="M", drug !="MD")
+
+KinesoreDat <- KinesoreDat %>% filter(!(gene == "Net1" & drug == "DMSO" & image %in% c("02")),
+                                      !(gene == "Net1" & drug == "D" & image %in% c("01", "02")),
+                                      !(gene == "Net1" & drug == "K" & image %in% c("01", "12","08","09","10")))
+
+comps <- list(c("DMSO", "Dynein\nInhibitor"),c("DMSO", "Kinesin\nInhibitor"), c("DMSO", "Both"), c("Kinesin\nInhibitor", "Both"))
+
+KinesoreDat %>% select(-N_thres_Total) %>% unique() %>% filter(cell == "soma") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K", "KD"), labels= c("DMSO","Dynein\nInhibitor","Kinesin\nInhibitor","Both")), y = n_s_thresh))  + geom_boxplot(aes(fill = gene),outlier.shape = NA) + geom_point(alpha = 0.25, position = "jitter") + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5, label.y = c(0.7,0.8,0.9,0.6)) + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = "none") + scale_fill_manual(values = c("#808080", "#95e7d9")) + facet_grid(gene~.) + EnvStats::stat_n_text(y.pos = -0.05) + coord_cartesian(ylim = c(-0.1,1))
+
+KinesoreDat %>% select(-N_thres_Total) %>% unique() %>% filter(cell == "soma")%>% ggplot(aes(x = gene, y = n_s_thresh))  + geom_boxplot(aes(fill = gene),outlier.shape = NA) + geom_point(alpha = 0.25, position = "jitter") + theme_cowplot() + stat_compare_means(comparisons = list(c("FF","Net1")), method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5, label.y = 0.60) + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = "none") + scale_fill_manual(values = c("#808080", "#95e7d9")) + facet_grid(.~factor(drug,levels = c("DMSO", "D", "K", "KD"), labels= c("DMSO","Dynein\nInhibitor","Kinesin\nInhibitor","Both"))) + EnvStats::stat_n_text(y.pos = -0.05) + coord_cartesian(ylim=c(0, 0.7))
+
+```
+
+```{r, }
+comps <- list(c("DMSO", "Dynein\nInhibitor"), c("DMSO", "Kinesin\nInhibitor"))
+
+KinesoreDat %>% filter(gene == "Net1", drug != "KD") %>% select(-N_thres_Total) %>% unique() %>% filter(cell == "soma") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K"), labels= c("DMSO","Dynein\nInhibitor","Kinesin\nInhibitor")), y = n_s_thresh))  + geom_boxplot(aes(fill = gene),outlier.shape = NA, width = 0.5) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5, label.y = c(1.2,1.4)) + labs(x = "", y = "Net1 3'UTR Reporter Transcripts\nin Neurite/Soma") + guides(fill = "none") + scale_fill_manual(values = "#95e7d9") + EnvStats::stat_n_text(y.pos = -0.05) + coord_cartesian(ylim = c(-0.1,1.5)) + theme(strip.background = element_rect(color = "white", fill = "white"))
+
+KinesoreDat %>% filter(gene == "FF", drug != "KD") %>% select(-N_thres_Total) %>% unique() %>% filter(cell == "soma") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K"), labels= c("DMSO","Dynein\nInhibitor","Kinesin\nInhibitor")), y = n_s_thresh))  + geom_boxplot(aes(fill = gene),outlier.shape = NA, width = 0.5) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5, label.y = c(1.2,1.4), tip.length = 0.15) + labs(x = "", y = "Firefly Reporter Transcripts\nin Neurite/Soma") + guides(fill = "none") + scale_fill_manual(values = "#808080") + EnvStats::stat_n_text(y.pos = -0.05) + coord_cartesian(ylim = c(-0.1,1.5)) + theme(strip.background = element_rect(color = "white", fill = "white"))
+
+
+
+
+p <- CAD_filt %>% filter(drug %in% c("DMSO","D","K"),
+                    !(gene == "Net1" & drug == "DMSO" & image %in% c("02")),
+                    !(gene == "Net1" & drug == "D" & image %in% c("01", "02")),
+                    !(gene == "Net1" & drug == "K" & image %in% c("01", "12","08","09","10"))) %>% 
+  mutate(Cell = as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %% 2 == 0, Cell-1, Cell)) %>% group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n())
+
+p <- rbind(p, tibble(gene = c("FF","FF","FF","Net1","Net1", "Net1"),
+        image = c("05","01","01","02","04","11"),
+        cell = c("neurite","neurite","neurite","neurite","neurite","neurite"),
+        Cell = c(1,1,3,1,1,1),
+        drug = c("D","K","K","K","K","K"),
+        numspots = c(0,0,0,0,0,0)))
+
+p %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K"), labels= c("DMSO","Dynein\nInhibitor","Kinesin\nInhibitor")), y = numspots, fill = gene)) + geom_boxplot(outlier.shape = NA) + theme_cowplot() + facet_grid(cell~gene, scales = "free_y") + guides(fill = "none") + labs(x = "", y = "Total Reporter Transcripts") + scale_fill_manual(values = c("#808080", "#95e7d9")) + theme(strip.background = element_rect(color = "white", fill = "white")) + EnvStats::stat_n_text(y.pos = -10)
+
+```
+
+
+## CAD Cells were dox induced for 48hrs then differentiated in -FBS media for 48 hours (with Dox)
+## Cells were then treated with various combinations of kinesin and dynene inhibitors for 4 hours
+
+
+```{r,}
+cad_RP <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.04.08_CADRPdrug/Results/_FISH-QUANT__all_spots_220408.txt", header = TRUE, skip = 13, sep = "\t"))
+
+cad_RP2 <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.04.08_CADRPdrug/Results/_FISH-QUANT__all_spots_220412.txt", header = TRUE, skip = 13, sep = "\t"))
+
+cad_RP <- rbind(cad_RP, cad_RP2) %>%  separate(File, into = c("CAD", "gene", "drug", "image", "stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), cell = ifelse(cell %% 2 == 0, "neurite", "soma"), image = substr(image,1,2)) %>% select(gene,drug, image, cell, everything(), -stack) 
+
+```
+
+```{r, }
+
+##a closer look with each condition.
+cad_RP %>% filter(TH_fit == 1) %>% select(gene,drug,cell,INT_raw) %>% gather(-gene,-drug,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(0,3000) + facet_grid(.~cell) + geom_hline(yintercept = 1200)
+
+cad_RP %>% filter(TH_fit == 1) %>% select(gene,cell,BGD) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + facet_grid(.~cell) 
+
+cad_RP %>% filter(TH_fit == 1)  %>% select(gene,cell,Pos_Z) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + facet_grid(.~cell) + geom_hline(yintercept = 500) + geom_hline(yintercept = 10000)
+
+cad_RP %>% filter(TH_fit == 1)  %>% select(gene,cell,SigmaX) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot()  + facet_grid(.~cell) + geom_hline(yintercept = 450)
+
+cad_RP %>% filter(TH_fit == 1)  %>% select(gene,cell,SigmaZ) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + theme_cowplot() + facet_grid(.~cell) + geom_hline(yintercept = 550)
+
+
+#really limits spots.
+cad_RP_filt <- cad_RP %>% filter(as.numeric(SigmaZ) < 550, as.numeric(INT_raw) > 1200, as.numeric(Pos_Z) > 500, as.numeric(Pos_Z) < 10000)
+
+#cad_RP_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n()) %>% spread(cell, numspots) %>% ggplot(aes(x = image, y = neurite/soma, color = gene)) + geom_boxplot(position = "dodge") + facet_grid(gene~factor(drug, levels = c("DMSO","K","D"))) 
+
+
+#CAD_filt <- CAD_filt %>% filter(!(line == "FF" & image == "01"), !(line == "RPL7" & image == "03"), !(line == "RPL7mut" & image == "01"))
+
+#cad_RP_filt %>% ggplot(aes(x = as.numeric(INT_raw), y = as.numeric(Pos_Z))) + geom_density2d() + facet_grid(drug~gene)
+```
+
+```{r, }
+
+cad_RP_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = drug, y = numspots, fill = gene, alpha = gene)) + geom_boxplot(outlier.shape = NA) + theme_cowplot() + facet_grid(cell~gene, scales = "free_y") + guides(fill = "none",alpha = "none")  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080")) + scale_alpha_manual(values = c(1, 1, 0.5, 1)) + EnvStats::stat_n_text()
+
+#not all comparisons
+comps <- list(c("DMSO", "D"), c("DMSO", "K"))
+
+cad_RP_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n()) %>% filter(cell == "neurite") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K")), y = numspots)) + geom_boxplot(aes(fill = gene), outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE, vjust = 0.5, label.y = c(40,50)) + labs(x = "", y = "Spots in Neurite") + guides(fill = "none")  + facet_grid(.~gene)  + EnvStats::stat_n_text(y.pos = -2) + scale_x_discrete(limits = c("DMSO","D","K")) + coord_cartesian(ylim = c(-4,65))  + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1))
+
+
+cad_RP_filt_summary <- cad_RP_filt %>% group_by(gene,drug,image,cell,Cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, drug, image, cell,Cell, N_thres_Total) %>% 
+  group_by(gene,drug,image,Cell) %>% 
+  mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>% 
+  spread(key = cell, value = N_thres_Total) %>%
+  mutate(neurite = ifelse(is.na(neurite), 0, neurite)) %>% 
+  mutate(n_s_thresh = neurite/soma) %>% 
+  select(gene, image, n_s_thresh) %>% 
+  ungroup() %>% left_join(., cad_RP_filt %>% group_by(gene,drug,image,cell,Cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, drug, image, cell, N_thres_Total)) 
+
+
+comps <- list(c("DMSO", "Dynein\nInhibitor"), c("DMSO", "Kinesin\nInhibitor"))
+
+cad_RP_filt_summary %>% filter(cell == "soma") %>%  select(-N_thres_Total) %>% unique() %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K"), labels = c("DMSO", "Dynein\nInhibitor", "Kinesin\nInhibitor")), y = n_s_thresh)) + geom_boxplot(aes(fill = gene, alpha = gene),outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5) + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = "none", alpha = "none") + scale_fill_manual(values = c("#808080","#e8c040", "#e8c040", "#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1)) + facet_grid(.~gene) + EnvStats::stat_n_text(y.pos = -0.01) + theme(strip.background = element_rect(color = "white", fill = "white"))
+
+```
+
+
+```{r, }
+cad_RP_filt <- cad_RP_filt %>% filter(!(gene == "RPS28" & drug == "D" & image %in% c("03", "04")),
+                                      !(gene == "RPS28" & drug == "DMSO" & image %in% c("14","10")))
+
+cad_RP_filt_summary <- cad_RP_filt %>% group_by(gene,drug,image,cell,Cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, drug, image, cell,Cell, N_thres_Total) %>% 
+  group_by(gene,drug,image,Cell) %>% 
+  mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>% 
+  spread(key = cell, value = N_thres_Total) %>%
+  mutate(neurite = ifelse(is.na(neurite), 0, neurite)) %>% 
+  mutate(n_s_thresh = neurite/soma) %>% 
+  select(gene, image, n_s_thresh) %>% 
+  ungroup() %>% left_join(., cad_RP_filt %>% group_by(gene,drug,image,cell,Cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, drug, image, cell, N_thres_Total)) 
+
+comps <- list(c("DMSO", "Dynein\nInhibitor"), c("DMSO", "Kinesin\nInhibitor"))
+
+p <- cad_RP_filt %>% 
+  mutate(Cell = as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %% 2 == 0, Cell-1, Cell)) %>% group_by(gene,drug,image,cell,Cell) %>% summarize(numspots = n())
+
+p <- rbind(p, tibble(gene = c("FF","FF", "RPS28"),
+        image = c("07","05","09"),
+        cell = c("neurite","neurite","neurite"),
+        Cell = c(3,1,1),
+        drug = c("DMSO","D","K"),
+        numspots = c(0,0,0)))
+
+p %>% filter(gene != "RPL7mut", gene != "FF") %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K"), labels = c("DMSO", "Dynein\nInhibitor", "Kinesin\nInhibitor")), y = numspots)) + geom_boxplot(aes(fill = gene, alpha = gene),outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5) + labs(x = "", y = "Total Reporter Transcripts") + facet_grid(cell~gene, scales = "free_y") + guides(fill = "none",alpha = "none")  + scale_fill_manual(values = c("#e8c040", "#b82080")) + scale_alpha_manual(values = c(1, 1)) + EnvStats::stat_n_text() + theme(strip.background = element_rect(color = "white", fill = "white"))
+
+cad_RP_filt_summary  %>% filter(gene != "RPL7mut", gene != "FF", cell == "soma") %>%  select(-N_thres_Total) %>% unique() %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "D", "K"), labels = c("DMSO", "Dynein\nInhibitor", "Kinesin\nInhibitor")), y = n_s_thresh)) + geom_boxplot(aes(fill = gene, alpha = gene),outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = comps, method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5) + labs(x = "", y = "Spots in Neurite/Soma") + guides(fill = "none", alpha = "none") + scale_fill_manual(values = c("#e8c040", "#b82080")) + scale_alpha_manual(values = c(1,1)) + facet_grid(.~gene) + EnvStats::stat_n_text(y.pos = -0.01) + theme(strip.background = element_rect(color = "white", fill = "white"))
+
+```
+
+```{r, }
+cad_RP_filt_summary  %>% filter(gene != "RPL7mut", drug !="D", gene != "FF", cell == "soma") %>%  select(-N_thres_Total) %>% unique() %>% ggplot(aes(x = factor(drug,levels = c("DMSO", "K"), labels = c("DMSO", "Kinesin\nInhibitor")), y = n_s_thresh)) + geom_boxplot(aes(fill = gene, alpha = gene),outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = list(c("DMSO", "Kinesin\nInhibitor")), method = "t.test", label = "p.signif", size = 7, hide.ns = TRUE,vjust = 0.5, label.y = 0.15) + labs(x = "", y = "Reporter Transcripts\nin Neurite/Soma") + guides(fill = "none", alpha = "none") + scale_fill_manual(values = c("#e8c040", "#b82080")) + scale_alpha_manual(values = c(1,1)) + facet_grid(.~gene) + EnvStats::stat_n_text(y.pos = -0.01) + theme(strip.background = element_rect(color = "white", fill = "white"))
+
+```

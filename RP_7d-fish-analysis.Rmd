@@ -437,7 +437,7 @@ CAD28 <- rbind(CAD28_summary, CAD28_more_summary) %>%
 ```{r,}
 all_spot_cad <- as_tibble(read.csv("CAD RPS28/Results/_FISH-QUANT__all_spots_201103.txt", header = TRUE, skip = 13, sep = "\t"))
 
-all_spot_cad <- all_spot_cad %>% separate(File, into = c("gene","image","channel","stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), cell = ifelse(cell %% 2 == 0, "neurite", "soma")) %>% select(gene, image, cell, everything(),-channel, -stack, -Cell) 
+all_spot_cad <- all_spot_cad %>% separate(File, into = c("gene","image","channel","stack"), sep = "_") %>%  mutate(cell = as.numeric(substr(Cell, 6, 6)), cell = ifelse(cell %% 2 == 0, "neurite", "soma")) %>% select(gene, image, cell, everything(),-channel, -stack) 
 
 all_spot_cad %>% select(gene,cell, SigmaX, SigmaZ, BGD, Pos_Z) %>% gather(-gene,-cell,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = gene, fill = gene)) + geom_density(alpha = 0.5) + facet_wrap(cell~param, scales = "free", nrow =2) + theme_cowplot()
 
@@ -459,16 +459,27 @@ all_spot_cad %>% select(gene,cell,SigmaZ) %>% gather(-gene,-cell,key = "param", 
 #really limits spots.
 CAD28_filt <- all_spot_cad %>% filter(as.numeric(SigmaX) < 450, as.numeric(SigmaZ) < 1800, as.numeric(Pos_Z) > 1400, as.numeric(INT_raw) > 700, as.numeric(BGD) < 350)
 
-CAD28_filt %>% group_by(gene,image,cell) %>% summarize(numspots = n()) %>% ggplot(aes(x = gene, y = numspots, fill = cell)) + geom_boxplot() + theme_cowplot()
+CAD28_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,image,cell,Cell,) %>% summarize(numspots = n()) %>% ggplot(aes(x = gene, y = numspots, fill = cell)) + geom_boxplot() + theme_cowplot()
 
-CAD28_filt %>% group_by(gene,image,cell) %>% summarize(numspots = n()) %>% filter(cell == "neurite") %>% ggplot(aes(x = gene, y = numspots, fill = gene)) + geom_boxplot(outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = list(c("005", "28"), c("005", "28mut"),c("28", "28mut")), method = "wilcox.test") + labs(x = "", y = "Spots in Neurite") + guides(fill = FALSE)
+CAD28_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>%  group_by(gene,image,cell,Cell) %>% summarize(numspots = n()) %>% filter(cell == "neurite") %>% ggplot(aes(x = gene, y = numspots, fill = gene)) + geom_boxplot(outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = list(c("005", "28"), c("005", "28mut"),c("28", "28mut")), method = "wilcox.test") + labs(x = "", y = "Spots in Neurite") + guides(fill = FALSE)
 
-CAD28filt_summary <- CAD28_filt %>% group_by(gene,image,cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell, N_thres_Total) %>% 
-  group_by(gene,image) %>% 
+CAD28filt_summary <- CAD28_filt %>% 
+  group_by(gene,image,cell,Cell) %>% 
+  summarize(N_thres_Total = n()) %>% ungroup() %>% 
+  select(gene, image, cell,Cell, N_thres_Total) %>% 
+  group_by(gene,image,Cell) %>% 
+  mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>% 
   spread(key = cell, value = N_thres_Total) %>%
+  mutate(neurite = ifelse(is.na(neurite), 0, neurite)) %>% 
   mutate(n_s_thresh = neurite/soma) %>% 
   select(gene, image, n_s_thresh) %>% 
-  ungroup() %>% left_join(., CAD28_filt %>% group_by(gene,image,cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell, N_thres_Total)) 
+  ungroup() %>% left_join(., CAD28_filt %>% group_by(gene,image,cell,Cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell,Cell, N_thres_Total) %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell))) 
+
+##i am going crazy trying to figure this out. but quick fix
+
+CAD28filt_summary <- CAD28filt_summary %>% rbind(., tibble(Cell=1, gene="28mut", image="03", n_s_thresh=0, cell="neurite", N_thres_Total=0))
+
+##
 CAD28filt_summary %>% select(-N_thres_Total) %>% unique() %>% ggplot(aes(x = gene, y = n_s_thresh, fill = gene)) + geom_boxplot(outlier.shape = NA) + theme_cowplot() + stat_compare_means(comparisons = list(c("005", "28"), c("005", "28mut"),c("28", "28mut")), method = "wilcox.test") + labs(x = "", y = "Spots in Neurite") + guides(fill = FALSE)
 
 ```
@@ -510,7 +521,7 @@ CAD28 %>% ggplot(aes(x = gene, y = AREA_cell, fill = cell)) + geom_boxplot(width
 ```{r, }
 my_comparisons = list(c("005", "28"), c("005", "28mut"), c("28","28mut"))
 
-CAD28 %>% filter(cell == "neurite") %>% ggplot(aes(x = gene, y = N_thres_Total, fill = gene, alpha = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25) + stat_compare_means(comparisons = my_comparisons, method = "wilcox.test") + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("005", "28", "28mut"), labels = c("FF", "RPS28", "RPS28mut")) + scale_fill_manual(values = c("#808080", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.25))
+CAD28 %>% filter(cell == "soma") %>% ggplot(aes(x = gene, y = N_thres_Total, fill = gene, alpha = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25) + stat_compare_means(comparisons = my_comparisons, method = "wilcox.test") + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("005", "28", "28mut"), labels = c("FF", "RPS28", "RPS28mut")) + scale_fill_manual(values = c("#808080", "#b82080", "#b82080")) + scale_alpha_manual(values = c(1,1,0.25))
 
 
 
@@ -521,22 +532,27 @@ rel_dat28 %>% ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene)) +
 
 ```{r, altogether now}
 
-rbind(select(CAD, -AREA_cell, -N_total), CAD28_filt %>% group_by(gene,image,cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell, N_thres_Total)) %>%  filter(gene != "8") %>% 
-    ggplot(aes(x = gene, y = N_thres_Total, fill = gene, alpha = gene))  + geom_boxplot(width = 0.75, outlier.shape = NA, legend = FALSE) + theme_cowplot()  + labs(x = "", y = "Total Number of\nReporter Transcripts") + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) +  scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + guides(fill = FALSE, alpha = FALSE) + EnvStats::stat_n_text(y.pos = -7,size = 4) + facet_wrap(.~cell, nrow =1, scales = "free") +
+rbind(select(CAD, -AREA_cell, -N_total), CAD28_filt %>% mutate(Cell =as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>% group_by(gene,image,cell,Cell) %>%  summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell, N_thres_Total)) %>%  filter(gene != "8") %>% 
+    ggplot(aes(x = gene, y = N_thres_Total, fill = gene, alpha = gene))  + geom_boxplot(width = 0.75, outlier.shape = NA, legend = FALSE) + theme_cowplot()  + labs(x = "", y = "Total Number of\nReporter Transcripts") + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) +  scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + guides(fill = FALSE, alpha = FALSE) + EnvStats::stat_n_text(y.pos = -7, size = 4) + facet_wrap(.~cell, nrow =1, scales = "free") +
   theme(strip.background = element_rect(color = "white", fill = "white"),
         strip.text.x = element_text(size = 12, color = "Black", face = "bold"),
         strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
 
-rbind(select(rel_dat, -n_s_tot, -id), CAD28filt_summary %>% select(-cell, - N_thres_Total) %>% unique())
+rbind(select(rel_dat, -n_s_tot, -id), CAD28filt_summary %>% select(-cell,-Cell, - N_thres_Total) %>% unique()) %>%
+  ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.5) + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite / Soma") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("005", "7", "7mut", "8", "28", "28mut"), labels = c("FF", "RPL7", "RPL7mut", "RPL8", "RPS28", "RPS28mut")) + stat_compare_means(comparisons = list(c("005", "7"), c("005", "7mut"),c("005","8"), c("005", "28"), c("005", "28mut"), c("7", "7mut"), c("28", "28mut")), method = "wilcox.test", label.y = c(0.75,0.8,0.85,0.9,0.95,0.7,0.7), inherit.aes = FALSE) + scale_fill_manual(values = c("#808080", "#b82080","#b82080", "#e8c040", "#e8c040", "#4888b8")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25,1)) + geom_hline(yintercept = 0.117, size = 1, linetype = "dashed") 
 
-rbind(select(rel_dat, -n_s_tot, -id), CAD28filt_summary %>% select(-cell, - N_thres_Total) %>% unique()) %>%
-  ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene)) + geom_point(alpha = 0.1, position = "jitter") + geom_violin() + geom_boxplot(width = 0.25) + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite / Soma") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("005", "7", "7mut", "8", "28", "28mut"), labels = c("FF", "RPL7", "RPL7mut", "RPL8", "RPS28", "RPS28mut")) + stat_compare_means(comparisons = list(c("005", "7"), c("005", "7mut"),c("005","8"), c("005", "28"), c("005", "28mut"), c("7", "7mut"), c("28", "28mut")), method = "wilcox.test", label.y = c(0.75,0.8,0.85,0.9,0.95,0.7,0.7), inherit.aes = FALSE) + scale_fill_manual(values = c("#808080", "#b82080","#b82080", "#e8c040", "#e8c040", "#4888b8")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25,1)) + geom_hline(yintercept = 0.117, size = 1, linetype = "dashed") 
+###plot4figs
 
-rbind(select(rel_dat, -n_s_tot, -id), CAD28filt_summary %>% select(-cell, - N_thres_Total) %>% unique()) %>% filter(gene != "8") %>% ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene))  + geom_boxplot( outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite / Soma") + EnvStats::stat_n_text(y.pos = -0.03) + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) + stat_compare_means(comparisons = list(c("005", "7"), c("005", "7mut"), c("005", "28"), c("005", "28mut"), c("7", "7mut"), c("28", "28mut")), method = "wilcox.test", label.y = c(0.45,0.5,0.55,0.6,0.4,0.4), inherit.aes = FALSE) + scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + coord_cartesian(ylim = c(-0.05,0.675))
+rbind(select(CAD,gene,image,cell,N_thres_Total), CAD28filt_summary %>% filter(gene == "28mut") %>% select(gene,image,cell,N_thres_Total)) %>% filter(gene != "8") %>% ggplot(aes(x = gene, y = N_thres_Total, fill = gene, alpha = gene)) + geom_boxplot(width = 0.75, outlier.shape = NA, legend = FALSE) + theme_cowplot()  + labs(x = "", y = "Total Number of\nReporter Transcripts") + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) +  scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + guides(fill = FALSE, alpha = FALSE) + EnvStats::stat_n_text(y.pos = -9, size = 4) + facet_wrap(.~cell, nrow =1, scales = "free") +
+  theme(strip.background = element_rect(color = "white", fill = "white"),
+        strip.text.x = element_text(size = 12, color = "Black", face = "bold"),
+        strip.text.y = element_text(size = 12, color = "Black", face = "bold"))
 
-moreRPS28mut <- read.table("extraRPS28mut_nosiRNA_n_s_thesh.txt") %>% mutate(gene = "28mut")
+rbind(select(rel_dat, -n_s_tot, -id), CAD28filt_summary %>% select(-cell,-Cell, - N_thres_Total) %>% unique() %>% filter(gene != "28", gene !="005")) %>% filter(gene != "8") %>% ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene))  + geom_boxplot( outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "Reporter Transcripts\nin Neurite / Soma") + EnvStats::stat_n_text(y.pos = -0.03) + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) + stat_compare_means(comparisons = list(c("005", "7"), c("005", "28"), c("7", "7mut"), c("28", "28mut")), method = "wilcox.test", label.y = c(0.45,0.5,0.4,0.45), label = "p.signif", size = 7, hide.ns = TRUE, vjust = 0.5, inherit.aes = FALSE) + scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + coord_cartesian(ylim = c(-0.05,0.65))
 
-rbind(select(rel_dat, -n_s_tot, -id), CAD28filt_summary %>% select(-cell, - N_thres_Total) %>% unique()) %>% rbind(., select(moreRPS28mut,gene,image,n_s_thresh)) %>% filter(gene != "8") %>% ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene))  + geom_boxplot( outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite / Soma") + EnvStats::stat_n_text(y.pos = -0.03) + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) + stat_compare_means(comparisons = list(c("005", "7"), c("005", "7mut"), c("005", "28"), c("005", "28mut"), c("7", "7mut"), c("28", "28mut")), method = "wilcox.test", label.y = c(0.45,0.5,0.55,0.6,0.4,0.4), inherit.aes = FALSE) + scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + coord_cartesian(ylim = c(-0.05,0.675))
+# moreRPS28mut <- read.table("extraRPS28mut_nosiRNA_n_s_thesh.txt") %>% mutate(gene = "28mut")
+#  
+# rbind(select(rel_dat, -n_s_tot, -id), CAD28filt_summary %>% select(-cell,-Cell, - N_thres_Total) %>% unique()) %>% rbind(., select(moreRPS28mut,gene,image,n_s_thresh)) %>% filter(gene != "8") %>% ggplot(aes(x = gene, y = n_s_thresh, fill = gene, alpha = gene))  + geom_boxplot( outlier.shape = NA) + theme_cowplot() + guides(fill = FALSE, alpha = FALSE) + labs(x = "", y = "spots in Neurite / Soma") + EnvStats::stat_n_text(y.pos = -0.03) + scale_x_discrete(limits = c("005", "7", "7mut", "28", "28mut"), labels = c("Firefly", "RPL7", "RPL7mut", "RPS28", "RPS28mut")) + stat_compare_means(comparisons = list(c("005", "7"), c("005", "7mut"), c("005", "28"), c("005", "28mut"), c("7", "7mut"), c("28", "28mut")), method = "wilcox.test", label.y = c(0.45,0.5,0.55,0.6,0.4,0.4), inherit.aes = FALSE) + scale_fill_manual(values = c("#808080", "#b82080", "#b82080", "#e8c040", "#e8c040")) + scale_alpha_manual(values = c(1,1,0.25,1,0.25)) + coord_cartesian(ylim = c(-0.05,0.675))
 
 ```
 

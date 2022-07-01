@@ -1,0 +1,116 @@
+---
+title: "NKHH FISH"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(cowplot)
+library(ggpubr)
+```
+
+## 7 Day differentiated C2bbe1 pTL005 and Net1 3'UTR cells on dishes with Kinesin or Dynein inhibitors
+## K0.5 = 25uM Kinesore and K1.0 = 50uM Kinesore
+## Round 1
+
+```{r,}
+FF <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.07.01_NKHH FISH/Results/_FISH-QUANT__all_spots_220701.txt", header = TRUE, sep = "\t", skip = 13))
+
+RE <- as_tibble(read.csv("/Users/raegoering/Documents/TaliaferroLab/IEC_FISH/22.07.01_NKHH FISH/Results/RE_FISH-QUANT__all_spots_220701.txt", header = TRUE, sep = "\t", skip = 13))
+
+
+spots <- bind_rows(list("FF" = FF, "RE" = RE), .id = "RNA") %>% separate(File, into = c("C2bbe1", "7d", "NKHH","Stellaris", "line", "image", "Stack"), sep = "_") %>% mutate(image = substr(image, 1, 2)) %>% select(-C2bbe1, -`7d`, -Stack, -Stellaris, -NKHH) 
+
+```
+
+## FF spots
+
+```{r, }
+
+## INT_raw
+spots %>% filter(TH_fit == 1, RNA == "FF") %>% select(line,INT_raw) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(300,5000) + geom_hline(yintercept = 2200)
+
+## INT_filt
+spots %>% filter(TH_fit == 1, RNA == "FF") %>% select(line,INT_filt) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(0,2000) + geom_hline(yintercept = 700)
+
+#BGD
+spots %>% filter(TH_fit == 1, RNA == "FF") %>% select(line,BGD) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(400,1500) + geom_hline(yintercept = 950)
+
+#PosZ
+spots %>% filter(TH_fit == 1, RNA == "FF") %>% select(line,Pos_Z) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + geom_hline(yintercept = c(1000,8000))
+
+#really limits spots.
+FF_filt <- spots %>% filter(TH_fit == 1, RNA == "FF", as.numeric(INT_filt) > 1000, as.numeric(INT_filt) < 1600, as.numeric(BGD) < 950, as.numeric(SigmaZ) < 700)
+
+
+#are all images similar?
+
+FF_filt %>% filter(line != "none") %>% ggplot(aes(x = Cell, y = as.numeric(Pos_Z), color = image)) + geom_boxplot(position = "dodge") + facet_grid(.~line) 
+
+FF_filt <- FF_filt %>% filter(!(line == "del"  & image == "01" & Cell == "Cell_3"),
+                              !(line == "del"  & image == "02" & Cell == "Cell_2"),
+                              !(line == "FF" & image == "01"),
+                              !(line == "LE" & image == "01"),
+                              !(line == "FL" & image == "01" & Cell == "Cell_3"))
+
+FF_filt %>% filter(line != "none") %>% ggplot(aes(x = as.numeric(INT_raw), y = as.numeric(Pos_Z))) + geom_density2d() + facet_grid(.~line)
+
+
+```
+
+```{r, }
+
+comps <- list(c("FF", "FL"), c("FF", "LE"), c("FF", "del"), c("FL", "LE"), c("FL", "del"))
+
+FF_filt %>% group_by(line, image, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = line, y = num_spots)) + geom_boxplot(aes(fill = line), oulier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none") + stat_compare_means(comparisons = comps, method = "wilcox.test", label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("FF", "FL", "LE", "del")) + scale_fill_manual(values = c("#51707c","#808080","#95e7d9", "#6ab6b0"))
+
+med_line <- FF_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+FF_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line != "none") %>% ggplot(aes(x = line, y = Position_In_Z-med_line, fill = line)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none") + stat_compare_means(comparisons = comps, method = "wilcox.test", label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed") + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-2,5.5)) + scale_x_discrete(limits = c("FF", "FL", "LE", "del")) + scale_fill_manual(values = c("#51707c","#808080","#95e7d9", "#6ab6b0"))
+
+```
+
+## RE spots
+
+```{r, }
+
+## INT_raw
+spots %>% filter(TH_fit == 1, RNA == "RE") %>% select(line,INT_raw) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(150,750) + geom_hline(yintercept = 500)
+
+## INT_filt
+spots %>% filter(TH_fit == 1, RNA == "RE") %>% select(line,INT_filt) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(0,300) + geom_hline(yintercept = 150)
+
+#BGD
+spots %>% filter(TH_fit == 1, RNA == "RE") %>% select(line,BGD) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(100,300) + geom_hline(yintercept = 250)
+
+#PosZ
+spots %>% filter(TH_fit == 1, RNA == "RE") %>% select(line,Pos_Z) %>% gather(-line,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = line, fill = line)) + geom_density(alpha = 0.5) + theme_cowplot() + geom_hline(yintercept = c(1200,12000))
+
+#really limits spots.
+RE_filt <- spots %>% filter(TH_fit == 1, RNA == "RE", as.numeric(INT_filt) > 150, as.numeric(BGD) < 250, as.numeric(SigmaZ) < 700, as.numeric(Pos_Z) < 12000, as.numeric(Pos_Z) > 1200)
+
+
+#are all images similar?
+
+RE_filt %>% filter(line != "none") %>% ggplot(aes(x = Cell, y = as.numeric(Pos_Z), color = image)) + geom_boxplot(position = "dodge") + facet_grid(.~line) 
+
+RE_filt <- RE_filt %>% filter(!(line == "FF" & image == "01"))
+
+RE_filt %>% filter(line != "none") %>% ggplot(aes(x = as.numeric(INT_raw), y = as.numeric(Pos_Z))) + geom_density2d() + facet_grid(.~line)
+
+
+```
+
+```{r, }
+
+comps <- list(c("FF", "FL"), c("FF", "LE"), c("FF", "del"), c("FL", "LE"), c("FL", "del"))
+
+RE_filt %>% group_by(line, image, Cell) %>% summarise(num_spots = n()) %>% ggplot(aes(x = line, y = num_spots)) + geom_boxplot(aes(fill = line), oulier.shape = NA) + theme_cowplot() + guides(fill = "none", col = "none") + stat_compare_means(comparisons = comps, method = "wilcox.test", label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5) + labs(x = "", y = "Number of spots per cell") + EnvStats::stat_n_text() + scale_x_discrete(limits = c("FF", "FL", "LE", "del")) + scale_fill_manual(values = c("#51707c","#808080","#95e7d9", "#6ab6b0"))
+
+med_line <- RE_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line == "FF") %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+RE_filt %>% mutate(Position_In_Z = ((as.numeric(Pos_Z)-2500) / 1000)) %>% filter(line != "none") %>% ggplot(aes(x = line, y = Position_In_Z-med_line, fill = line)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + theme_cowplot() + guides(fill = "none") + stat_compare_means(comparisons = comps, method = "wilcox.test", label = "p.signif", size = 7, vjust = 0.5, hide.ns = TRUE) + geom_hline(yintercept = 0, size = 1, linetype = "dashed") + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") + coord_cartesian(ylim = c(-2,5.5)) + scale_x_discrete(limits = c("FF", "FL", "LE", "del")) + scale_fill_manual(values = c("#51707c","#808080","#95e7d9", "#6ab6b0"))
+
+```
+

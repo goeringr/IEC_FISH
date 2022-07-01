@@ -29,7 +29,7 @@ CAD28 <- rbind(CAD28_summary, CAD28_more_summary) %>% # this combines the two da
 
 ```
 
-## Sometimes we are interested in more than just the aboslute number of spots in the neurite vs the soma
+## Sometimes we are interested in more than just the abosolute number of spots in the neurite vs the soma
 ### here we calculate spots in neurite relative to the spots in their soma. This is a ratio but can be thought of as a percent localized since the soma contributes many more spots than the neuite
 
 ```{r, compare neurites to their somas}
@@ -260,24 +260,22 @@ CAD_filt %>%
 
 # Usually a better way is to normalize neurite spots to soma spots (this code is messy)
 CADfilt_norm <- CAD_filt %>% 
-  group_by(gene,image,cell) %>% 
-  summarize(N_thres_Total = n()) %>% # sum all spots in a cell (soma or neurite)
-  ungroup() %>%
-  select(gene, image, cell, N_thres_Total) %>% 
-  group_by(gene,image) %>% 
-  spread(key = cell, value = N_thres_Total) %>%
-  mutate(n_s_thresh = neurite/soma) %>% # calculate neurite spots / soma spots
+  group_by(gene,image,cell,Cell) %>% # group by image, cell and soma or neurite
+  summarize(N_thres_Total = n()) %>% # sum all of the spots (or rows)
+  ungroup() %>% # this makes the code happier
+  mutate(Cell = as.numeric(substr(Cell,6,6)), Cell = ifelse(Cell %%2 == 0, Cell-1,Cell)) %>% # create cell id
+  spread(key = cell, value = N_thres_Total) %>% # spread values for easy calculation
+  mutate(neurite = ifelse(is.na(neurite), 0, neurite)) %>% # make sure 0 spot neurites arent lost
+  mutate(n_s_thresh = neurite/soma) %>% 
   select(gene, image, n_s_thresh) %>% 
-  ungroup() %>% left_join(., CAD_filt %>% 
-                            group_by(gene,image,cell) %>%
-                            summarize(N_thres_Total = n()) %>%
-                            ungroup() %>%
-                            select(gene, image, cell, N_thres_Total)) 
+  ungroup() %>% left_join(., CAD_filt %>% group_by(gene,image,cell,Cell) %>% summarize(N_thres_Total = n()) %>% ungroup() %>% select(gene, image, cell, N_thres_Total)) 
+
 
 # now plot the normalized data
 CADfilt_norm %>% 
   select(-N_thres_Total) %>% 
   unique() %>%
+  filter(cell == "soma") %>% #get rid of duplicates
   ggplot(aes(x = gene, y = n_s_thresh))  + 
   geom_violin(aes(fill = gene, alpha = gene)) + 
   geom_boxplot(aes(fill = gene, alpha = gene), outlier.shape = NA, width = 0.1) +

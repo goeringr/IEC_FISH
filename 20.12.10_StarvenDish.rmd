@@ -93,7 +93,7 @@ spots_Dish_filt <- spots_Dish %>% filter(TH_fit == 1, as.numeric(INT_raw) > 900)
 
 ```
 
-#Dish words similarly for RPL7. I doubt how well differentiated RPS28 cells were.
+#Dish works similarly for RPL7. I doubt how well differentiated RPS28 cells were.
 #All of these samples were less dense than I had hoped at the beginning of Differentiation especially RPS28
 
 ```{r, }
@@ -211,7 +211,7 @@ spots_RFTC_filt %>% unite(col = "sample", gene,day,sep = "_") %>% ggplot(aes(x =
 ##### 0 -> 13000 nm ~ 13 microns?? uhhh...
 med_line <- spots_RFTC_filt  %>% unite(col = "sample", gene,day,sep = "_") %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 12000)/1000) %>% filter(sample == "FF_0hr") %>% summarize(median(Position_In_Z)) %>% as.numeric()
 
-spots_RFTC_filt %>% filter(gene != "Lox") %>% unite(col = "sample", gene,day,sep = "_") %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 12000)/1000)  %>% ggplot(aes(x = sample, y = Position_In_Z, fill = sample, alpha = sample)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(inherit.aes = FALSE, aes(x = sample, y = Position_In_Z), comparisons = list(c("FF_0hr", "FF_2hr"), c("RPS28_0hr", "RPS28_2hr"), c("RPL7_0hr", "RPL7_0.5hr"), c("RPL7_0hr", "RPL7_1hr"), c("RPL7_0hr", "RPL7_2hr")), method = "wilcox.test", label.y = c(13, 13,13,14,15)) + scale_fill_manual(values = c("#808080", "#808080","#e8c040","#e8c040","#e8c040","#e8c040",  "#b82080","#b82080")) + scale_alpha_manual(values = c(0.1,1,0.3,0.1,0.5,1,0.1,1)) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-2,15)) + scale_x_discrete(limits = c("FF_0hr", "FF_2hr", "RPL7_0hr", "RPL7_0.5hr", "RPL7_1hr", "RPL7_2hr", "RPS28_0hr", "RPS28_2hr"))
+spots_RFTC_filt %>% filter(gene != "Lox") %>% unite(col = "sample", gene,day,sep = "_") %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 12000)/1000)  %>% ggplot(aes(x = sample, y = Position_In_Z)) + geom_violin(aes(fill = sample, alpha = sample)) + geom_boxplot(aes(fill = sample, alpha = sample), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(inherit.aes = FALSE, aes(x = sample, y = Position_In_Z), comparisons = list(c("FF_0hr", "FF_2hr"), c("RPS28_0hr", "RPS28_2hr"), c("RPL7_0hr", "RPL7_0.5hr"), c("RPL7_0hr", "RPL7_1hr"), c("RPL7_0hr", "RPL7_2hr")), method = "wilcox.test", label.y = c(13, 13,13,14,15)) + scale_fill_manual(values = c("#808080", "#808080","#e8c040","#e8c040","#e8c040","#e8c040",  "#b82080","#b82080")) + scale_alpha_manual(values = c(0.1,1,0.3,0.1,0.5,1,0.1,1)) + labs(x = "", y = "Position in Z (um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-2,18)) + scale_x_discrete(limits = c("FF_0hr", "FF_2hr", "RPL7_0hr", "RPL7_0.5hr", "RPL7_1hr", "RPL7_2hr", "RPS28_0hr", "RPS28_2hr"))
 
 ```
 
@@ -255,13 +255,13 @@ spots_S28TC %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "ne
 spots_S28TC %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, AMP, INT_raw, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot() + ylim(0,2000)
 
 ##a closer look with each condition.
-spots_S28TC %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(1000,2800) + geom_hline(yintercept = 1600)
+spots_S28TC %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(1000,2800) + geom_hline(yintercept = 1700)
 
 spots_S28TC %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, BGD) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(1000,2800) + geom_hline(yintercept = 1450) 
 
 
 #really limits spots.
-spots_S28TC_filt <- spots_S28TC %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1600, as.numeric(BGD) < 1450, as.numeric(Pos_Z) > 750)
+spots_S28TC_filt <- spots_S28TC %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1700, as.numeric(BGD) < 1450, as.numeric(Pos_Z) > 800, as.numeric(Pos_Z) < 16000)
 
 ```
 
@@ -330,13 +330,18 @@ spots_DISH %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg
 spots_DISH %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group, AMP, INT_raw, INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + facet_wrap(.~param, scales = "free") + theme_cowplot() + ylim(0,2000)
 
 ##a closer look with each condition.
-spots_DISH %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,INT_raw) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(600,1200) + geom_hline(yintercept = 850)
+spots_DISH %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,INT_raw) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(600,2000) + geom_hline(yintercept = 1200)
+
+spots_DISH %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,INT_filt) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(600,1500) + geom_hline(yintercept = 1000)
 
 spots_DISH %>% filter(TH_fit == 1) %>% mutate(group = ifelse(gene == "Lox", "neg", "pos")) %>% select(group,BGD) %>% gather(-group,key = "param", value = "value") %>% mutate(value = as.numeric(value)) %>% ggplot(aes(y=value, group = group, fill = group)) + geom_density(alpha = 0.5) + theme_cowplot() + ylim(600,1000) + geom_hline(yintercept = 680)
 
 
 #really limits spots.
-spots_DISH_filt <- spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 850, as.numeric(INT_filt) > 850)
+spots_DISH_filt <- spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1200, as.numeric(INT_filt) > 1000)
+
+#do all cells look similar?
+spots_DISH_filt %>% ggplot(aes(x = as.character(cell), y = as.numeric(Pos_Z), color = image)) + geom_boxplot(position = "dodge") + theme_cowplot() + facet_grid(gene~day)
 
 ```
 
@@ -352,10 +357,68 @@ spots_DISH_filt %>% ggplot(aes(x = day, y = as.numeric(Pos_Z), fill = day)) + ge
 ##### 0 -> 13000 nm ~ 13 microns?? uhhh...
 med_line <- spots_DISH_filt  %>% filter(gene == "FF", day == "S0") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% summarize(median(Position_In_Z)) %>% as.numeric()
 
-spots_DISH_filt %>% filter(gene != "Lox") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000)  %>% ggplot(aes(x = day, y = Position_In_Z, fill = gene, alpha = day)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test") + facet_grid(.~gene) + scale_x_discrete(limits = c("S0", "S8", "S6RF2")) + labs(x = "", y = "Position in Z(um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-0.5,15)) +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.75,0.3)) + labs(x = "", y = "Position in Z (um)")
+spots_DISH_filt %>% filter(gene != "Lox") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000)  %>% ggplot(aes(x = day, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(12,10,11)) + facet_grid(.~gene) + scale_x_discrete(limits = c("S0", "S8", "S6RF2")) + labs(x = "", y = "Position in Z(um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-0.5,15)) +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.75,0.3)) + labs(x = "", y = "Position in Z (um)")
 
 comparisons = list(c("FF", "RPL7"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("RPS28", "RPS28mut"))
 
-spots_DISH_filt %>% filter(gene != "Lox") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000)  %>% ggplot(aes(x = gene, y = Position_In_Z, fill = gene, alpha = day)) + geom_violin() + geom_boxplot(width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(11,12,13,12)) + labs(x = "", y = "Position in Z(um)") + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-0.5,15)) +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.75,0.3)) + labs(x = "", y = "Position in Z (um)") + facet_grid(.~day)
+spots_DISH_filt %>% filter(gene != "Lox") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000)  %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label.y = c(11,12,13,12)) + labs(x = "", y = "Position in Z(um)") + coord_cartesian(ylim = c(-0.5,15)) +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.75,0.3)) + labs(x = "", y = "Position in Z (um)") + facet_grid(.~day)
+
+```
+
+```{r, }
+
+spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 2000, as.numeric(Pos_Z) > 2000) %>% group_by(gene,day, image, cell)  %>% summarise(num_spots = n()) %>% ggplot(aes(x = day, y = num_spots, fill = day)) + geom_violin() + geom_boxplot(width = 0.25) + geom_point(alpha = 0.01, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE) + EnvStats::stat_n_text(y.pos = -5) + labs(x = "", y = "Number of spots per cell") + facet_grid(.~gene)
+
+spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 2000) %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% ggplot(aes(x = as.character(cell), y = Position_In_Z, color = image)) + geom_boxplot(position = "dodge") + theme_cowplot() + facet_grid(gene~day)
+
+spots_DISH %>% filter(day == "S0", TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 2000, as.numeric(Pos_Z) > 2000) %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% ggplot(aes(x = as.numeric(BGD), y = Position_In_Z)) + geom_density2d() + facet_grid(gene~day)
+
+## get S0 to look nice
+med_line <- spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 1600, as.numeric(Pos_Z) > 2000)  %>% filter(gene == "FF", day == "S0") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+spots_DISH %>% filter(day == "S0", gene!="Lox", TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 1600, as.numeric(Pos_Z) > 2000) %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5, label.y = c(13,14,12,15,16,12)) + labs(x = "", y = "Position in Z(um)")  + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") + scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.75,0.3)) + labs(x = "", y = "Position in Z (um)")
+
+
+
+med_line <- spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 4000)  %>% filter(gene == "FF", day == "S0") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+comparisons = list(c("FF", "RPL7"), c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("RPS28", "RPS28mut"))
+
+spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 4000) %>% filter(gene != "Lox") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000)  %>% ggplot(aes(x = gene, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(comparisons = comparisons, method = "wilcox.test", label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5, label.y = c(11,12,13,12)) + labs(x = "", y = "Position in Z(um)") + geom_hline(yintercept = 0) + coord_cartesian(ylim = c(-0.5,15)) +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.75,0.3)) + labs(x = "", y = "Position in Z (um)") + facet_grid(.~day)
+
+
+
+comparisons <- list(c("S0", "S6RF2"), c("S0", "S8"), c("S6RF2", "S8"))
+
+med_line <- spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 2000, as.numeric(Pos_Z) > 2000)  %>% filter(gene == "FF", day == "S0") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 2000, as.numeric(Pos_Z) > 2000) %>% filter(gene != "Lox") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000)  %>% ggplot(aes(x = day, y = Position_In_Z)) + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day), width = 0.25, outlier.shape = NA) + geom_point(alpha = 0.001, position = "jitter") + theme_cowplot() + guides(fill = FALSE, col = FALSE,alpha = FALSE) + stat_compare_means(comparisons = comparisons, label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5, method = "wilcox.test") + facet_grid(.~gene) + scale_x_discrete(limits = c("S0", "S8", "S6RF2")) + labs(x = "", y = "Position in Z(um)") + geom_hline(yintercept = med_line, size = 1, linetype = "dashed") +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.75,0.3)) + labs(x = "", y = "Position in Z (um)") 
+
+
+```
+
+## Add spots together
+
+```{r, }
+
+comparisons = list(c("FF", "RPL7"), c("FF", "RPL7mut") c("RPL7", "RPL7mut"), c("FF", "RPS28"), c("FF", "RPS28mut"), c("RPS28", "RPS28mut"))
+
+med_line <- spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 2000, as.numeric(Pos_Z) > 2000)  %>% filter(gene == "FF", day == "S0") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000) %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+spots12.17 <- spots_DISH %>% filter(TH_fit == 1, as.numeric(INT_raw) > 1000, as.numeric(INT_raw) < 2000, as.numeric(Pos_Z) > 2000) %>% filter(gene != "Lox") %>% mutate(Position_In_Z = (as.numeric(Pos_Z) - 4500)/1000, normZ = Position_In_Z - med_line)
+
+#spots_FF_filt <- read.table()
+
+med_line <- spots_FF_filt %>% filter(gene == "FF", day == "S8") %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 10750)/1000) %>% summarize(median(Position_In_Z)) %>% as.numeric()
+
+spots11.24 <- spots_FF_filt %>% mutate(Position_In_Z = (-(as.numeric(Pos_Z)) + 10750)/1000, normZ = Position_In_Z - med_line) %>% filter(gene != "Lox")  %>% mutate(day = ifelse(day == "S8RF2", "S6RF2", day))
+
+
+rbind(spots12.17, spots11.24) %>% ggplot(aes(x = gene, y = normZ)) + geom_violin(aes(fill = gene, alpha = gene)) + geom_boxplot(aes(fill = gene, alpha = gene), width = 0.25, outlier.shape = NA)  + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = comparisons, label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5, method = "wilcox.test") + facet_grid(.~day) + labs(x = "", y = "Position in Z(um)") + geom_hline(yintercept = 0, size = 1, linetype = "dashed") +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,1,0.5,1,0.5)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") 
+
+rbind(spots12.17, spots11.24) %>% ggplot(aes(x = day, y = normZ)) + geom_violin(aes(fill = gene, alpha = day)) + geom_boxplot(aes(fill = gene, alpha = day), width = 0.25, outlier.shape = NA)  + theme_cowplot() + guides(fill = "none", col = "none", alpha = "none") + stat_compare_means(comparisons = list(c("S0", "S6RF2"), c("S0", "S8"), c("S6RF2", "S8")), label = "p.signif", hide.ns = TRUE, size = 7, vjust = 0.5, method = "wilcox.test") + facet_grid(.~gene) + scale_x_discrete(limits = c("S0", "S8", "S6RF2")) + labs(x = "", y = "Position in Z(um)") + geom_hline(yintercept = 0, size = 1, linetype = "dashed") +  scale_fill_manual(values = c("#808080", "#e8c040","#e8c040", "#b82080","#b82080")) + scale_alpha_manual(values = c(1,0.75,0.3)) + labs(x = "", y = "Position in Z (um)\nFirefly Normalized") 
+
 
 ```
